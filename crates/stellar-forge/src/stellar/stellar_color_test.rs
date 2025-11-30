@@ -2,10 +2,9 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use units::Mass;
 
-use crate::{
-    stellar::{BlackHole, MainSequenceStar, StellarObject},
-    stellar::{stellar_color::StellarColor, stellar_object::NeutronStar},
-};
+use crate::stellar::generation::{neutron_star, solar_analog};
+use crate::stellar::stellar_color::StellarColor;
+use crate::stellar::stellar_objects::{BlackHole, StellarObject};
 
 #[test]
 fn stellar_color_from_temperature() {
@@ -74,7 +73,7 @@ fn stellar_object_color() {
     let mut rng = ChaChaRng::seed_from_u64(42);
 
     // Main sequence star should use temperature
-    let ms = StellarObject::MainSequence(MainSequenceStar::solar_analog());
+    let ms = StellarObject::MainSequence(solar_analog());
     let ms_color = ms.color();
     let direct_color = StellarColor::from_temperature(5800.0);
     assert_eq!(ms_color, direct_color);
@@ -98,7 +97,7 @@ fn stellar_object_color() {
     assert!(bh_acc_color.r > 200);
 
     // Neutron star should be blue-ish
-    let ns = StellarObject::NeutronStar(NeutronStar::new(&mut rng));
+    let ns = StellarObject::NeutronStar(neutron_star(&mut rng));
     let ns_color = ns.color();
     assert!(ns_color.b > ns_color.r);
 }

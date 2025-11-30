@@ -2,17 +2,18 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use units::{Length, Mass, Temperature, Time};
 
-use crate::stellar::{
-    spectral_class::{LuminosityClass, SpectralType, VariabilityType},
-    stellar_object::{
-        BlackHole, GiantStar, MainSequenceStar, NeutronStar, WhiteDwarf, WhiteDwarfType,
-    },
+use crate::stellar::generation::{
+    black_hole, giant_star, main_sequence_star, neutron_star, solar_analog, white_dwarf,
+};
+use crate::stellar::spectral::{LuminosityClass, SpectralType, VariabilityType};
+use crate::stellar::stellar_objects::{
+    BlackHole, GiantStar, MainSequenceStar, NeutronStar, WhiteDwarf, WhiteDwarfType,
 };
 
 #[test]
 fn white_dwarf_test() {
     let mut rng = ChaChaRng::seed_from_u64(42);
-    let star = WhiteDwarf::new(&mut rng);
+    let star = white_dwarf(&mut rng);
 
     assert_eq!(
         star,
@@ -29,7 +30,7 @@ fn white_dwarf_test() {
 #[test]
 fn neutron_star_test() {
     let mut rng = ChaChaRng::seed_from_u64(43);
-    let star = NeutronStar::new(&mut rng);
+    let star = neutron_star(&mut rng);
 
     assert_eq!(
         star,
@@ -46,7 +47,7 @@ fn neutron_star_test() {
 #[test]
 fn black_hole_test() {
     let mut rng = ChaChaRng::seed_from_u64(43);
-    let star = BlackHole::new(&mut rng, 21.0, 1.0);
+    let star = black_hole(&mut rng, 21.0, 1.0);
 
     assert_eq!(
         star,
@@ -60,7 +61,7 @@ fn black_hole_test() {
 
 #[test]
 fn main_sequence_test() {
-    let star = MainSequenceStar::solar_analog();
+    let star = solar_analog();
 
     assert_eq!(
         star,
@@ -82,7 +83,7 @@ fn main_sequence_test() {
 #[test]
 fn giant_star_test() {
     let mut rng = ChaChaRng::seed_from_u64(42);
-    let star = GiantStar::new(&mut rng, 34.0);
+    let star = giant_star(&mut rng, 34.0);
 
     assert_eq!(
         star,
@@ -97,4 +98,14 @@ fn giant_star_test() {
             variability: VariabilityType::None,
         }
     );
+}
+
+#[test]
+fn main_sequence_star_from_mass() {
+    let star = main_sequence_star(1.5, 0.1, 500.0);
+
+    assert_eq!(star.mass.to_solar_masses(), 1.5);
+    assert_eq!(star.metallicity, 0.1);
+    assert_eq!(star.age.to_myr(), 500.0);
+    assert_eq!(star.luminosity_class, LuminosityClass::V);
 }
