@@ -1,0 +1,86 @@
+name: TypeScript
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install Rust with WASM target
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      # Cache Rust dependencies for faster builds
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-wasm-
+
+      # Node.js setup with Volta
+      - uses: volta-cli/action@v4
+
+      # Cache npm dependencies
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # Cache built WASM modules
+      - name: Cache WASM build output
+        id: cache-wasm
+        uses: actions/cache@v4
+        with:
+          path: |
+            crates/render/pkg
+            crates/magrathea-wasm/pkg
+          key: ${{ runner.os }}-wasm-build-${{ hashFiles('**/Cargo.lock', 'crates/**/*.rs', 'crates/**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-build-
+
+      # Cache Playwright browsers
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Build WASM modules (only if cache miss)
+      - name: Build WASM modules
+        if: steps.cache-wasm.outputs.cache-hit != 'true'
+        run: npm run build:wasm
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run TypeScript tests
+        run: npm run test -- --reporter dot
+
+      - name: Run WASM tests
+        run: npm run test:wasm
