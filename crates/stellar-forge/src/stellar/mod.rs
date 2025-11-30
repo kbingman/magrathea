@@ -1,3 +1,4 @@
+pub(crate) mod sampling;
 pub(crate) mod spectral_class;
 pub(crate) mod stellar_color;
 pub(crate) mod stellar_object;

@@ -17,9 +17,10 @@ fn white_dwarf_test() {
     assert_eq!(
         star,
         WhiteDwarf {
-            mass: 0.8228426056215805,
-            radius: 0.009000738823795101,
+            mass: Mass::from_solar_masses(0.8228426056215805),
+            radius: Length::from_solar_radii(0.009000738823795101),
             luminosity: 0.0013714043427026344,
+            temperature: Temperature::from_kelvin(11720.060071150392),
             spectral_type: WhiteDwarfType::DB,
         }
     );
@@ -33,8 +34,8 @@ fn neutron_star_test() {
     assert_eq!(
         star,
         NeutronStar {
-            mass: 1.4249211795524308,
-            radius: 11.936648469868707,
+            mass: Mass::from_solar_masses(1.4249211795524308),
+            radius: Length::from_km(11.936648469868707),
             magnetic_field: 11.362101818674972,
             magnetar: false,
             pulsar: true,
@@ -50,7 +51,7 @@ fn black_hole_test() {
     assert_eq!(
         star,
         BlackHole {
-            mass: 4.418330033588915,
+            mass: Mass::from_solar_masses(4.418330033588915),
             has_accretion: false,
             spin: 0.15309853235773063,
         }
@@ -86,10 +87,10 @@ fn giant_star_test() {
     assert_eq!(
         star,
         GiantStar {
-            mass: 27.21910704224043,
-            radius: 124.40092153463617,
+            mass: Mass::from_solar_masses(27.21910704224043),
+            radius: Length::from_solar_radii(124.40092153463617),
             luminosity: 642222.2222222221,
-            temperature: 14665.16896210703,
+            temperature: Temperature::from_kelvin(14665.16896210703),
             spectral_type: SpectralType::B,
             subtype: 7,
             luminosity_class: LuminosityClass::IAPLUS,

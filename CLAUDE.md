@@ -617,6 +617,7 @@ Message:
   - List the key components being added
   - Use imperative mood ("Set up" not "Sets up")
   - Keep lines under 72 characters
+  - Do not refer to Claude or Claude Code
 
 
 **Last Updated:** November 29, 2025

@@ -1,5 +1,6 @@
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
+use units::Mass;
 
 use crate::{
     stellar::{BlackHole, MainSequenceStar, StellarObject},
@@ -80,7 +81,7 @@ fn stellar_object_color() {
 
     // Black hole without accretion should be nearly black
     let bh = StellarObject::BlackHole(BlackHole {
-        mass: 10.0,
+        mass: Mass::from_solar_masses(10.0),
         spin: 0.5,
         has_accretion: false,
     });
@@ -89,7 +90,7 @@ fn stellar_object_color() {
 
     // Black hole with accretion should be brighter (orange-white)
     let bh_acc = StellarObject::BlackHole(BlackHole {
-        mass: 10.0,
+        mass: Mass::from_solar_masses(10.0),
         spin: 0.5,
         has_accretion: true,
     });

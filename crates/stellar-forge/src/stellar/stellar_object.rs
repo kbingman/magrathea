@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use rand::Rng;
 use rand_chacha::ChaChaRng;
 use serde::{Deserialize, Serialize};
@@ -8,6 +6,7 @@ use units::{Length, Mass, Temperature};
 
 use crate::StellarColor;
 
+use super::sampling::{sample_gaussian, sample_mass_kroupa, sample_metallicity};
 use super::spectral_class::{LuminosityClass, SpectralType, VariabilityType};
 
 // Constants for stellar distribution
@@ -176,62 +175,17 @@ impl MainSequenceStar {
     /// let star = MainSequenceStar::sample(&mut rng);
     /// ```
     pub fn sample(rng: &mut ChaChaRng) -> Self {
-        // Sample mass from Kroupa IMF, limited to planet-hosting range
-        let mass = Self::sample_mass_kroupa_planet_hosts(rng);
+        // Sample mass from Kroupa IMF, limited to planet-hosting range (≤3 M☉)
+        // Stars above 3 M☉ have lifetimes <500 Myr, unlikely to host stable planets
+        let mass = sample_mass_kroupa(rng, 3.0);
 
         // Sample metallicity from local galactic distribution
-        let metallicity = Self::sample_metallicity(rng);
+        let metallicity = sample_metallicity(rng);
 
         // Sample age appropriate for disk formation studies (young to middle-aged)
         let age = Self::sample_age(rng, mass);
 
         Self::new(mass, metallicity, age.to_myr())
-    }
-
-    /// Sample stellar mass from Kroupa IMF, limited to planet-hosting range
-    ///
-    /// The Kroupa IMF is a broken power law. We limit to 0.08-3.0 M☉ because:
-    /// - Below 0.08 M☉: brown dwarfs, not true stars
-    /// - Above 3.0 M☉: short lifetimes (<500 Myr), unlikely stable planets
-    ///
-    /// Distribution heavily favors M dwarfs (~75%), then K dwarfs (~15%),
-    /// then G/F stars (~10%).
-    fn sample_mass_kroupa_planet_hosts(rng: &mut ChaChaRng) -> f64 {
-        // Segment weights for planet-hosting mass range
-        // Integrated from Kroupa IMF over each segment
-        let segment_weights = [0.75, 0.15, 0.10]; // M, K, G/F stars
-        let rand: f64 = rng.random();
-
-        if rand < segment_weights[0] {
-            // M dwarfs: 0.08-0.45 M☉, slope -1.3
-            Self::sample_power_law_mass(0.08, 0.45, -1.3, rng)
-        } else if rand < segment_weights[0] + segment_weights[1] {
-            // K dwarfs: 0.45-0.8 M☉, slope -2.3
-            Self::sample_power_law_mass(0.45, 0.8, -2.3, rng)
-        } else {
-            // G/F stars: 0.8-3.0 M☉, slope -2.3
-            Self::sample_power_law_mass(0.8, 3.0, -2.3, rng)
-        }
-    }
-
-    /// Sample from a power-law distribution
-    fn sample_power_law_mass(m_min: f64, m_max: f64, alpha: f64, rng: &mut ChaChaRng) -> f64 {
-        let x: f64 = rng.random();
-        let alpha1 = alpha + 1.0;
-        (x * (m_max.powf(alpha1) - m_min.powf(alpha1)) + m_min.powf(alpha1)).powf(1.0 / alpha1)
-    }
-
-    /// Sample metallicity from local galactic distribution
-    ///
-    /// Returns [Fe/H] in dex, centered on solar (0.0) with σ ≈ 0.2 dex
-    fn sample_metallicity(rng: &mut ChaChaRng) -> f64 {
-        // Box-Muller transform for Gaussian
-        let u1: f64 = rng.random();
-        let u2: f64 = rng.random();
-        let z = (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos();
-
-        // Mean = 0.0 (solar), σ = 0.2 dex, clamped to reasonable range
-        (z * 0.2).clamp(-0.5, 0.4)
     }
 
     /// Sample stellar age appropriate for planet formation studies
@@ -251,13 +205,13 @@ impl MainSequenceStar {
 /// Giant stars: evolved stars burning heavier elements
 /// mass: typically 0.3-8 solar masses
 /// radius: 10-1000 times main sequence radius
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GiantStar {
-    pub mass: f64,
-    pub radius: f64,
+    pub mass: Mass,
+    pub radius: Length,
     pub luminosity: f64,
-    pub temperature: f64,
+    pub temperature: Temperature,
     pub spectral_type: SpectralType,
     pub subtype: u8,
     pub luminosity_class: LuminosityClass,
@@ -312,7 +266,7 @@ impl GiantStar {
     /// let supergiant = GiantStar::new(&mut rng, 15.0); // Creates a supergiant
     /// ```
     pub fn new(rng: &mut ChaChaRng, initial_mass: f64) -> Self {
-        let (mass, luminosity, temperature, luminosity_class) = match initial_mass {
+        let (mass_solar, luminosity, temp_kelvin, luminosity_class) = match initial_mass {
             // Hypergiant (> 30 M☉)
             m if m > 30.0 => {
                 let mass = m * rng.random_range(0.78..0.82);
@@ -363,22 +317,22 @@ impl GiantStar {
             }
         };
 
-        let radius = StellarObject::calculate_radius(luminosity, temperature);
-        let spectral_type = StellarObject::spectral_type_from_temp(temperature);
-        let subtype = StellarObject::calculate_subtype(temperature);
+        let radius_solar = StellarObject::calculate_radius(luminosity, temp_kelvin);
+        let spectral_type = StellarObject::spectral_type_from_temp(temp_kelvin);
+        let subtype = StellarObject::calculate_subtype(temp_kelvin);
 
         GiantStar {
-            mass,
-            radius,
+            mass: Mass::from_solar_masses(mass_solar),
+            radius: Length::from_solar_radii(radius_solar),
             luminosity,
-            temperature,
+            temperature: Temperature::from_kelvin(temp_kelvin),
             spectral_type,
             subtype,
             luminosity_class,
             variability: VariabilityType::determine_variability(
-                mass,
-                temperature,
-                LuminosityClass::V,
+                mass_solar,
+                temp_kelvin,
+                luminosity_class,
             ),
         }
     }
@@ -387,12 +341,13 @@ impl GiantStar {
 /// White dwarfs: dense stellar remnants of low/medium mass stars
 /// mass: typically 0.17-1.44 solar masses (Chandrasekhar limit)
 /// temperature: 4,000K to 150,000K (initially very hot, cooling over time)
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WhiteDwarf {
-    pub mass: f64,
-    pub radius: f64,
+    pub mass: Mass,
+    pub radius: Length,
     pub luminosity: f64,
+    pub temperature: Temperature,
     pub spectral_type: WhiteDwarfType,
 }
 
@@ -435,16 +390,21 @@ impl WhiteDwarf {
     /// let white_dwarf = WhiteDwarf::new(&mut rng);
     /// ```
     pub fn new(rng: &mut ChaChaRng) -> Self {
-        let mass: f64 = rng.random_range(0.17..=1.44);
-        let radius = 0.01 * (0.6 / mass).powf(1.0 / 3.0);
+        let mass_solar: f64 = rng.random_range(0.17..=1.44);
+        let radius_solar = 0.01 * (0.6 / mass_solar).powf(1.0 / 3.0);
         let base_luminosity = 0.001; // Typical middle-aged WD
-        let luminosity = base_luminosity * (mass / 0.6).powf(1.0);
+        let luminosity = base_luminosity * (mass_solar / 0.6).powf(1.0);
         let spectral_type = Self::determine_spectral_class(luminosity);
 
+        // Calculate temperature from L = 4πR²σT⁴ (Stefan-Boltzmann)
+        // In solar units: T/T_sun = (L/R²)^(1/4)
+        let temp_kelvin = SOLAR_TEMP * (luminosity / (radius_solar * radius_solar)).powf(0.25);
+
         Self {
-            mass,
-            radius,
+            mass: Mass::from_solar_masses(mass_solar),
+            radius: Length::from_solar_radii(radius_solar),
             luminosity,
+            temperature: Temperature::from_kelvin(temp_kelvin),
             spectral_type,
         }
     }
@@ -464,11 +424,11 @@ impl WhiteDwarf {
 /// Neutron stars: ultra-dense stellar remnants
 /// mass: 1.1-2.5 solar masses
 /// radius: ~12km (remarkably consistent)
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NeutronStar {
-    pub mass: f64,           // Solar masses
-    pub radius: f64,         // km
+    pub mass: Mass,
+    pub radius: Length,
     pub magnetic_field: f64, // Log Gauss
     pub pulsar: bool,
     pub magnetar: bool,
@@ -504,10 +464,10 @@ impl NeutronStar {
     pub fn new(rng: &mut ChaChaRng) -> Self {
         // Mass distribution following Özel & Freire 2016
         // Using a peaked distribution around 1.4 M☉
-        let mass = Self::sample_mass(rng);
+        let mass_solar = Self::sample_mass(rng);
 
-        // Radius based on mass-radius relationship
-        let radius = Self::calculate_radius(mass);
+        // Radius based on mass-radius relationship (returns km)
+        let radius_km = Self::calculate_radius_km(mass_solar);
 
         // Magnetic field distribution is bimodal
         // Regular NS: 11-13, Magnetars: 14-15
@@ -526,8 +486,8 @@ impl NeutronStar {
         };
 
         Self {
-            mass,
-            radius,
+            mass: Mass::from_solar_masses(mass_solar),
+            radius: Length::from_km(radius_km),
             magnetic_field,
             pulsar,
             magnetar,
@@ -535,11 +495,9 @@ impl NeutronStar {
     }
 
     fn sample_mass(rng: &mut ChaChaRng) -> f64 {
-        // Box-Muller transform to generate normal distribution
-        let u1: f64 = rng.random();
-        let u2: f64 = rng.random();
-
-        let z: f64 = (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos();
+        // Sample from skewed normal distribution (Özel & Freire 2016)
+        // Base Gaussian centered at 0 with unit variance
+        let z = sample_gaussian(rng, 0.0, 1.0);
 
         // Parameters for the distribution
         let mean = 1.4;
@@ -553,20 +511,20 @@ impl NeutronStar {
         skewed.clamp(1.1, 2.5)
     }
 
-    fn calculate_radius(mass: f64) -> f64 {
+    fn calculate_radius_km(mass_solar: f64) -> f64 {
         // Approximation of mass-radius relationship
         // Based on various EOS models
         // Returns radius in km
-        12.0 * (mass / 1.4).powf(-0.3)
+        12.0 * (mass_solar / 1.4).powf(-0.3)
     }
 }
 
 /// Black holes: objects with gravity so strong that nothing can escape
 /// mass: typically 3-100 solar masses (stellar), millions to billions (supermassive)
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlackHole {
-    pub mass: f64,
+    pub mass: Mass,
     pub spin: f64,
     pub has_accretion: bool,
 }
@@ -595,18 +553,18 @@ impl BlackHole {
     /// let black_hole = BlackHole::new(&mut rng, 25.0, 0.02); // 25 solar mass progenitor, solar metallicity
     /// ```
     pub fn new(rng: &mut ChaChaRng, initial_mass: f64, metallicity: f64) -> Self {
-        let mass = Self::calculate_mass(rng, initial_mass, metallicity);
+        let mass_solar = Self::calculate_mass_solar(rng, initial_mass, metallicity);
         let spin = Self::calculate_spin(rng, initial_mass);
         let has_accretion = rng.random_bool(0.1); // 10% chance
 
         Self {
-            mass,
+            mass: Mass::from_solar_masses(mass_solar),
             has_accretion,
             spin,
         }
     }
 
-    fn calculate_mass(rng: &mut ChaChaRng, initial_mass: f64, metallicity: f64) -> f64 {
+    fn calculate_mass_solar(rng: &mut ChaChaRng, initial_mass: f64, metallicity: f64) -> f64 {
         // Mass loss due to winds scales with metallicity
         let wind_loss = initial_mass * metallicity * 0.4;
 
@@ -791,8 +749,9 @@ impl StellarObject {
     /// let star = StellarObject::sample(&mut rng);
     /// ```
     pub fn sample(rng: &mut ChaChaRng) -> Self {
-        let mass = Self::sample_mass_kroupa(rng);
-        let metallicity = Self::sample_metallicity(rng);
+        // Sample mass from full Kroupa IMF (up to 150 M☉)
+        let mass = sample_mass_kroupa(rng, 150.0);
+        let metallicity = sample_metallicity(rng);
 
         // Sample age, but cap at stellar lifetime to avoid all stars becoming remnants
         let max_lifetime_gyr = Self::estimate_lifetime(mass);
@@ -800,39 +759,6 @@ impl StellarObject {
 
         let age_years = age_gyr * 1.0e9;
         Self::new(rng, mass, age_years, metallicity)
-    }
-
-    /// Sample stellar mass from Kroupa (2001) IMF
-    ///
-    /// The Kroupa IMF is a broken power law:
-    /// - 0.08 ≤ M < 0.5: α = -1.3
-    /// - 0.5 ≤ M < 1.0: α = -2.3
-    /// - M ≥ 1.0: α = -2.3
-    ///
-    /// Returns mass in solar masses, range 0.08 - 150 M☉
-    fn sample_mass_kroupa(rng: &mut ChaChaRng) -> f64 {
-        // Segment weights from integrating each segment of the IMF
-        let segment_weights = [0.80, 0.15, 0.05];
-        let rand: f64 = rng.random();
-
-        if rand < segment_weights[0] {
-            // 0.08-0.5 M☉: slope -1.3
-            Self::sample_power_law(0.08, 0.5, -1.3, rng)
-        } else if rand < segment_weights[0] + segment_weights[1] {
-            // 0.5-1.0 M☉: slope -2.3
-            Self::sample_power_law(0.5, 1.0, -2.3, rng)
-        } else {
-            // 1.0-150.0 M☉: slope -2.3
-            Self::sample_power_law(1.0, 150.0, -2.3, rng)
-        }
-    }
-
-    /// Sample from a power-law distribution between m_min and m_max with given slope
-    fn sample_power_law(m_min: f64, m_max: f64, alpha: f64, rng: &mut ChaChaRng) -> f64 {
-        let x: f64 = rng.random();
-        let alpha1 = alpha + 1.0;
-
-        (x * (m_max.powf(alpha1) - m_min.powf(alpha1)) + m_min.powf(alpha1)).powf(1.0 / alpha1)
     }
 
     /// Sample stellar age from galactic thin disk distribution
@@ -862,24 +788,6 @@ impl StellarObject {
 
         // Uniform distribution from MIN_AGE to effective_max
         MIN_AGE + rng.random::<f64>() * (effective_max - MIN_AGE)
-    }
-
-    /// Sample metallicity from local galactic distribution
-    ///
-    /// Returns [Fe/H] in dex, centered on solar (0.0)
-    /// Uses Gaussian with σ ≈ 0.2 dex
-    fn sample_metallicity(rng: &mut ChaChaRng) -> f64 {
-        // Box-Muller transform for Gaussian
-        let u1: f64 = rng.random();
-        let u2: f64 = rng.random();
-
-        let z = (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos();
-
-        // Mean = 0.0 (solar), σ = 0.2 dex
-        let metallicity = z * 0.2;
-
-        // Clamp to reasonable range
-        metallicity.clamp(-0.5, 0.4)
     }
 
     /// Temperature boundaries for spectral types (in Kelvin)
@@ -944,16 +852,11 @@ impl StellarObject {
             StellarObject::MainSequence(star) => {
                 StellarColor::from_temperature(star.temperature.to_kelvin())
             }
-            StellarObject::Giant(star) => StellarColor::from_temperature(star.temperature),
+            StellarObject::Giant(star) => {
+                StellarColor::from_temperature(star.temperature.to_kelvin())
+            }
             StellarObject::WhiteDwarf(wd) => {
-                // White dwarfs range from very hot (blue-white) to cool (red)
-                // Use spectral type to estimate temperature
-                let temp = match wd.spectral_type {
-                    WhiteDwarfType::DA | WhiteDwarfType::DB => 15000.0, // Hot, blue-white
-                    WhiteDwarfType::DC => 8000.0,                       // Cooler, white
-                    WhiteDwarfType::DQ | WhiteDwarfType::DZ => 6000.0,  // Even cooler
-                };
-                StellarColor::from_temperature(temp)
+                StellarColor::from_temperature(wd.temperature.to_kelvin())
             }
             StellarObject::NeutronStar(ns) => {
                 // Neutron stars: young ones are hot (blue), old ones cool
