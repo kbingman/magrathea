@@ -9,7 +9,6 @@ use units::time::Time;
 use units::{Length, Mass, Temperature};
 
 use super::spectral::{LuminosityClass, SpectralType, VariabilityType};
-use super::stellar_color::StellarColor;
 
 /// Main sequence stars: core hydrogen burning stars
 ///
@@ -147,44 +146,4 @@ pub enum StellarObject {
     WhiteDwarf(WhiteDwarf),
     NeutronStar(NeutronStar),
     BlackHole(BlackHole),
-}
-
-impl StellarObject {
-    /// Get the visual color of this stellar object
-    ///
-    /// Returns an RGB color based on the object's temperature or type.
-    /// Main sequence stars, giants, and white dwarfs use blackbody colors.
-    /// Neutron stars and black holes use characteristic colors.
-    pub fn color(&self) -> StellarColor {
-        match self {
-            StellarObject::MainSequence(star) => {
-                StellarColor::from_temperature(star.temperature.to_kelvin())
-            }
-            StellarObject::Giant(star) => {
-                StellarColor::from_temperature(star.temperature.to_kelvin())
-            }
-            StellarObject::WhiteDwarf(wd) => {
-                StellarColor::from_temperature(wd.temperature.to_kelvin())
-            }
-            StellarObject::NeutronStar(ns) => {
-                // Neutron stars: young ones are hot (blue), old ones cool
-                // Magnetars and pulsars tend to be more energetic
-                if ns.magnetar {
-                    StellarColor::new(200, 220, 255) // Bright blue-white
-                } else if ns.pulsar {
-                    StellarColor::new(180, 200, 255) // Blue-white
-                } else {
-                    StellarColor::new(160, 180, 220) // Dimmer blue
-                }
-            }
-            StellarObject::BlackHole(bh) => {
-                // Black holes: dark with possible accretion disk glow
-                if bh.has_accretion {
-                    StellarColor::new(255, 200, 150) // Orange-white accretion glow
-                } else {
-                    StellarColor::new(20, 20, 30) // Nearly black with faint blue
-                }
-            }
-        }
-    }
 }

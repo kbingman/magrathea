@@ -6,7 +6,9 @@ pub mod stellar;
 
 // Re-export types for convenience
 pub use stellar::spectral::{LuminosityClass, SpectralType, VariabilityType};
-pub use stellar::stellar_color::StellarColor;
+pub use stellar::stellar_color::{
+    StellarColor, black_hole_color, color_for_object, neutron_star_color,
+};
 pub use stellar::stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };

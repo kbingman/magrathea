@@ -3,7 +3,7 @@ use rand_chacha::ChaChaRng;
 use units::Mass;
 
 use crate::stellar::generation::{neutron_star, solar_analog};
-use crate::stellar::stellar_color::StellarColor;
+use crate::stellar::stellar_color::{StellarColor, color_for_object};
 use crate::stellar::stellar_objects::{BlackHole, StellarObject};
 
 #[test]
@@ -74,7 +74,7 @@ fn stellar_object_color() {
 
     // Main sequence star should use temperature
     let ms = StellarObject::MainSequence(solar_analog());
-    let ms_color = ms.color();
+    let ms_color = color_for_object(&ms);
     let direct_color = StellarColor::from_temperature(5800.0);
     assert_eq!(ms_color, direct_color);
 
@@ -84,7 +84,7 @@ fn stellar_object_color() {
         spin: 0.5,
         has_accretion: false,
     });
-    let bh_color = bh.color();
+    let bh_color = color_for_object(&bh);
     assert!(bh_color.r < 50 && bh_color.g < 50 && bh_color.b < 50);
 
     // Black hole with accretion should be brighter (orange-white)
@@ -93,11 +93,11 @@ fn stellar_object_color() {
         spin: 0.5,
         has_accretion: true,
     });
-    let bh_acc_color = bh_acc.color();
+    let bh_acc_color = color_for_object(&bh_acc);
     assert!(bh_acc_color.r > 200);
 
     // Neutron star should be blue-ish
     let ns = StellarObject::NeutronStar(neutron_star(&mut rng));
-    let ns_color = ns.color();
+    let ns_color = color_for_object(&ns);
     assert!(ns_color.b > ns_color.r);
 }
