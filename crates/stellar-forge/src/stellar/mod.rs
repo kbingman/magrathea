@@ -9,6 +9,10 @@ pub mod stellar_objects;
 #[cfg(test)]
 mod generation_test;
 #[cfg(test)]
+mod sampling_test;
+#[cfg(test)]
+mod spectral_test;
+#[cfg(test)]
 mod stellar_color_test;
 
 // Re-export types
