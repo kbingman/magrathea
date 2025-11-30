@@ -1,8 +1,8 @@
-use super::stellar_objects::{BlackHole, NeutronStar, StellarObject};
+use serde::{Deserialize, Serialize};
 
 /// RGB color representation for stellar objects
 ///
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StellarColor {
     pub r: u8,
     pub g: u8,
@@ -111,48 +111,5 @@ impl StellarColor {
             .map_err(|_| format!("Invalid blue component: {}", &s[4..6]))?;
 
         Ok(Self { r, g, b })
-    }
-}
-
-/// Get the visual color for a stellar object
-///
-/// Returns an RGB color based on the object's temperature or type.
-/// Main sequence stars, giants, and white dwarfs use blackbody colors.
-/// Neutron stars and black holes use characteristic colors.
-pub fn color_for_object(obj: &StellarObject) -> StellarColor {
-    match obj {
-        StellarObject::MainSequence(star) => {
-            StellarColor::from_temperature(star.temperature.to_kelvin())
-        }
-        StellarObject::Giant(star) => StellarColor::from_temperature(star.temperature.to_kelvin()),
-        StellarObject::WhiteDwarf(wd) => StellarColor::from_temperature(wd.temperature.to_kelvin()),
-        StellarObject::NeutronStar(ns) => neutron_star_color(ns),
-        StellarObject::BlackHole(bh) => black_hole_color(bh),
-    }
-}
-
-/// Get the visual color for a neutron star
-///
-/// Neutron stars appear blue-white, with magnetars and pulsars
-/// being more energetic (brighter).
-pub fn neutron_star_color(ns: &NeutronStar) -> StellarColor {
-    if ns.magnetar {
-        StellarColor::new(200, 220, 255) // Bright blue-white
-    } else if ns.pulsar {
-        StellarColor::new(180, 200, 255) // Blue-white
-    } else {
-        StellarColor::new(160, 180, 220) // Dimmer blue
-    }
-}
-
-/// Get the visual color for a black hole
-///
-/// Black holes are nearly black, but those with accretion disks
-/// show an orange-white glow from the heated material.
-pub fn black_hole_color(bh: &BlackHole) -> StellarColor {
-    if bh.has_accretion {
-        StellarColor::new(255, 200, 150) // Orange-white accretion glow
-    } else {
-        StellarColor::new(20, 20, 30) // Nearly black with faint blue
     }
 }

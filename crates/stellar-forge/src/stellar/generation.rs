@@ -10,6 +10,7 @@ use units::{Length, Mass, Temperature};
 
 use super::sampling::{sample_gaussian, sample_mass_kroupa, sample_metallicity};
 use super::spectral::{LuminosityClass, SpectralType, VariabilityType};
+use super::stellar_color::StellarColor;
 use super::stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };
@@ -79,6 +80,7 @@ pub fn main_sequence_star(mass_solar: f64, metallicity: f64, age_myr: f64) -> Ma
         ),
         metallicity,
         age: Time::from_myr(age_myr),
+        color: StellarColor::from_temperature(temperature),
     }
 }
 
@@ -249,6 +251,7 @@ pub fn giant_star(rng: &mut ChaChaRng, initial_mass: f64) -> GiantStar {
             temp_kelvin,
             luminosity_class,
         ),
+        color: StellarColor::from_temperature(temp_kelvin),
     }
 }
 
@@ -286,6 +289,7 @@ pub fn white_dwarf(rng: &mut ChaChaRng) -> WhiteDwarf {
         luminosity,
         temperature: Temperature::from_kelvin(temp_kelvin),
         spectral_type,
+        color: StellarColor::from_temperature(temp_kelvin),
     }
 }
 
@@ -335,12 +339,21 @@ pub fn neutron_star(rng: &mut ChaChaRng) -> NeutronStar {
         rng.random_bool(0.8)
     };
 
+    let color = if magnetar {
+        StellarColor::new(200, 220, 255) // Bright blue-white
+    } else if pulsar {
+        StellarColor::new(180, 200, 255) // Blue-white
+    } else {
+        StellarColor::new(160, 180, 220) // Dimmer blue
+    };
+
     NeutronStar {
         mass: Mass::from_solar_masses(mass_solar),
         radius: Length::from_km(radius_km),
         magnetic_field,
         pulsar,
         magnetar,
+        color,
     }
 }
 
@@ -386,10 +399,17 @@ pub fn black_hole(rng: &mut ChaChaRng, initial_mass: f64, metallicity: f64) -> B
     let spin = calculate_bh_spin(rng, initial_mass);
     let has_accretion = rng.random_bool(0.1);
 
+    let color = if has_accretion {
+        StellarColor::new(255, 200, 150) // Orange-white accretion glow
+    } else {
+        StellarColor::new(20, 20, 30) // Nearly black with faint blue
+    };
+
     BlackHole {
         mass: Mass::from_solar_masses(mass_solar),
         has_accretion,
         spin,
+        color,
     }
 }
 
@@ -398,12 +418,14 @@ fn calculate_bh_mass(rng: &mut ChaChaRng, initial_mass: f64, metallicity: f64) -
     let sn_loss = initial_mass * rng.random_range(0.2..0.5);
     let final_mass = initial_mass - wind_loss - sn_loss;
     let variation = rng.random_range(0.8..1.2);
+
     final_mass * variation
 }
 
 fn calculate_bh_spin(rng: &mut ChaChaRng, initial_mass: f64) -> f64 {
     let base_spin = (initial_mass - 20.0) / 100.0;
     let variation = rng.random_range(-0.2..0.2);
+
     (base_spin + variation).clamp(0.0, 1.0)
 }
 
@@ -447,6 +469,7 @@ pub fn stellar_object(
     }
 
     let age_myr = Time::from_years(age_years).to_myr();
+
     new_living_star(rng, life_fraction, initial_mass, metallicity, age_myr)
 }
 

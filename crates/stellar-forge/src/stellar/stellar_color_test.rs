@@ -1,10 +1,8 @@
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
-use units::Mass;
 
-use crate::stellar::generation::{neutron_star, solar_analog};
-use crate::stellar::stellar_color::{StellarColor, color_for_object};
-use crate::stellar::stellar_objects::{BlackHole, StellarObject};
+use crate::stellar::generation::{black_hole, neutron_star, solar_analog};
+use crate::stellar::stellar_color::StellarColor;
 
 #[test]
 fn stellar_color_from_temperature() {
@@ -72,32 +70,22 @@ fn stellar_color_hex_roundtrip() {
 fn stellar_object_color() {
     let mut rng = ChaChaRng::seed_from_u64(42);
 
-    // Main sequence star should use temperature
-    let ms = StellarObject::MainSequence(solar_analog());
-    let ms_color = color_for_object(&ms);
-    let direct_color = StellarColor::from_temperature(5800.0);
-    assert_eq!(ms_color, direct_color);
+    // Main sequence star should have color based on temperature
+    let ms = solar_analog();
+    let expected_color = StellarColor::from_temperature(5800.0);
+    assert_eq!(ms.color, expected_color);
 
-    // Black hole without accretion should be nearly black
-    let bh = StellarObject::BlackHole(BlackHole {
-        mass: Mass::from_solar_masses(10.0),
-        spin: 0.5,
-        has_accretion: false,
-    });
-    let bh_color = color_for_object(&bh);
-    assert!(bh_color.r < 50 && bh_color.g < 50 && bh_color.b < 50);
-
-    // Black hole with accretion should be brighter (orange-white)
-    let bh_acc = StellarObject::BlackHole(BlackHole {
-        mass: Mass::from_solar_masses(10.0),
-        spin: 0.5,
-        has_accretion: true,
-    });
-    let bh_acc_color = color_for_object(&bh_acc);
-    assert!(bh_acc_color.r > 200);
+    // Black hole color depends on accretion state
+    let bh = black_hole(&mut rng, 25.0, 0.0);
+    if bh.has_accretion {
+        // Orange-white accretion glow
+        assert_eq!(bh.color, StellarColor::new(255, 200, 150));
+    } else {
+        // Nearly black
+        assert_eq!(bh.color, StellarColor::new(20, 20, 30));
+    }
 
     // Neutron star should be blue-ish
-    let ns = StellarObject::NeutronStar(neutron_star(&mut rng));
-    let ns_color = color_for_object(&ns);
-    assert!(ns_color.b > ns_color.r);
+    let ns = neutron_star(&mut rng);
+    assert!(ns.color.b > ns.color.r);
 }

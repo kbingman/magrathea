@@ -9,6 +9,7 @@ use units::time::Time;
 use units::{Length, Mass, Temperature};
 
 use super::spectral::{LuminosityClass, SpectralType, VariabilityType};
+use super::stellar_color::StellarColor;
 
 /// Main sequence stars: core hydrogen burning stars
 ///
@@ -35,6 +36,8 @@ pub struct MainSequenceStar {
     /// Metallicity [Fe/H] in dex (0.0 = solar)
     pub metallicity: f64,
     pub age: Time,
+    /// Visual color based on temperature
+    pub color: StellarColor,
 }
 
 /// Giant stars: evolved stars burning heavier elements
@@ -58,6 +61,8 @@ pub struct GiantStar {
     pub subtype: u8,
     pub luminosity_class: LuminosityClass,
     pub variability: VariabilityType,
+    /// Visual color based on temperature
+    pub color: StellarColor,
 }
 
 /// White dwarfs: dense stellar remnants of low/medium mass stars
@@ -78,6 +83,8 @@ pub struct WhiteDwarf {
     pub luminosity: f64,
     pub temperature: Temperature,
     pub spectral_type: WhiteDwarfType,
+    /// Visual color based on temperature
+    pub color: StellarColor,
 }
 
 /// White dwarf spectral classification
@@ -115,6 +122,8 @@ pub struct NeutronStar {
     pub pulsar: bool,
     /// Whether this is a magnetar (B > 10^14 G)
     pub magnetar: bool,
+    /// Visual color (blue-white, varies with magnetar/pulsar status)
+    pub color: StellarColor,
 }
 
 /// Black holes: objects with gravity so strong that nothing can escape
@@ -132,6 +141,8 @@ pub struct BlackHole {
     pub spin: f64,
     /// Whether an accretion disk is present
     pub has_accretion: bool,
+    /// Visual color (dark, or orange-white with accretion)
+    pub color: StellarColor,
 }
 
 /// A stellar object of any type

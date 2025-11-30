@@ -8,6 +8,7 @@ use crate::stellar::generation::{
     solar_analog, spectral_type_from_temp, stellar_object, white_dwarf,
 };
 use crate::stellar::spectral::{LuminosityClass, SpectralType, VariabilityType};
+use crate::stellar::stellar_color::StellarColor;
 use crate::stellar::stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };
@@ -25,6 +26,7 @@ fn white_dwarf_test() {
             luminosity: 0.0013714043427026344,
             temperature: Temperature::from_kelvin(11720.060071150392),
             spectral_type: WhiteDwarfType::DB,
+            color: StellarColor::from_temperature(11720.060071150392),
         }
     );
 }
@@ -42,6 +44,7 @@ fn neutron_star_test() {
             magnetic_field: 11.362101818674972,
             magnetar: false,
             pulsar: true,
+            color: StellarColor::new(180, 200, 255), // Blue-white (pulsar)
         }
     );
 }
@@ -57,6 +60,7 @@ fn black_hole_test() {
             mass: Mass::from_solar_masses(4.418330033588915),
             has_accretion: false,
             spin: 0.15309853235773063,
+            color: StellarColor::new(20, 20, 30), // Nearly black
         }
     );
 }
@@ -78,6 +82,7 @@ fn main_sequence_test() {
             subtype: 2,
             luminosity_class: LuminosityClass::V,
             variability: VariabilityType::None,
+            color: StellarColor::from_temperature(5800.0),
         }
     );
 }
@@ -98,6 +103,7 @@ fn giant_star_test() {
             subtype: 7,
             luminosity_class: LuminosityClass::IAPLUS,
             variability: VariabilityType::None,
+            color: StellarColor::from_temperature(14665.16896210703),
         }
     );
 }
