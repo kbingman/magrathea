@@ -1,6 +1,6 @@
 use approx::assert_relative_eq;
 
-use crate::disk::gas_disk::GasDisk;
+use crate::disk::{DiskMass, DiskModel, GasDisk};
 use units::Length;
 
 #[test]
@@ -193,4 +193,18 @@ fn mean_free_path_reasonable() {
     );
 
     println!("Mean free path at 1 AU: {:.1} cm", mfp.to_cm());
+}
+
+#[test]
+fn analytical_pressure_gradient_matches_expected() {
+    let disk = GasDisk::mmsn();
+
+    // For MMSN with p=1, q=0.5:
+    // d ln P / d ln r = -(p + (3+q)/2) = -(1 + 1.75) = -2.75
+    let d_ln_p = disk.pressure_gradient_log(Length::from_au(1.0));
+    assert_relative_eq!(d_ln_p, -2.75, max_relative = 1e-10);
+
+    // Should be constant across radius for power-law disk
+    let d_ln_p_5au = disk.pressure_gradient_log(Length::from_au(5.0));
+    assert_relative_eq!(d_ln_p, d_ln_p_5au, max_relative = 1e-10);
 }

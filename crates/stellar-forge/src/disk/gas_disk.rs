@@ -18,15 +18,11 @@
 //! gas and drives radial drift of solid particles.
 
 use serde::{Deserialize, Serialize};
-use units::{
-    AngularVelocity, Density, Length, Mass, Pressure, SurfaceDensity, Temperature, Time, Velocity,
-};
+use units::{Length, Mass, SurfaceDensity, Temperature};
 
-use crate::{
-    MainSequenceStar,
-    disk::constants::{G, K_B, M_PROTON, MU, PI},
-    solar_analog,
-};
+use crate::{MainSequenceStar, disk::constants::PI, solar_analog};
+
+use super::disk_model::{DiskMass, DiskModel};
 
 /// A protoplanetary gas disk with power-law profiles.
 ///
@@ -137,183 +133,59 @@ impl GasDisk {
             alpha,
         }
     }
+}
 
-    // =========================================================================
-    // Primary profiles (power laws)
-    // =========================================================================
+// =============================================================================
+// DiskModel trait implementation
+// =============================================================================
 
-    /// Surface density at radius r.
-    /// Σ(r) = Σ_0 × (r / r_0)^(-p)
-    pub fn surface_density(&self, r: Length) -> SurfaceDensity {
+impl DiskModel for GasDisk {
+    fn surface_density(&self, r: Length) -> SurfaceDensity {
         let ratio = r.to_cm() / self.r_0.to_cm();
         SurfaceDensity::from_grams_per_cm2(
             self.sigma_0.to_grams_per_cm2() * ratio.powf(-self.sigma_exponent),
         )
     }
 
-    /// Temperature at radius r.
-    /// T(r) = T_0 × (r / r_0)^(-q)
-    pub fn temperature(&self, r: Length) -> Temperature {
+    fn temperature(&self, r: Length) -> Temperature {
         let ratio = r.to_cm() / self.r_0.to_cm();
         Temperature::from_kelvin(self.temperature_0.to_kelvin() * ratio.powf(-self.temp_exponent))
     }
 
-    // =========================================================================
-    // Derived quantities
-    // =========================================================================
-
-    /// Keplerian orbital frequency at radius r.
-    /// Ω_K = √(G M_* / r³)
-    pub fn orbital_frequency(&self, r: Length) -> AngularVelocity {
-        let r_cm = r.to_cm();
-        let omega = (G * self.stellar_mass.to_grams() / r_cm.powi(3)).sqrt();
-
-        AngularVelocity::from_rad_per_sec(omega)
+    fn stellar_mass(&self) -> Mass {
+        self.stellar_mass
     }
 
-    /// Keplerian orbital velocity at radius r.
-    /// v_K = r × Ω_K = √(G M_* / r)
-    pub fn keplerian_velocity(&self, r: Length) -> Velocity {
-        let r_cm = r.to_cm();
-        let v_k = (G * self.stellar_mass.to_grams() / r_cm).sqrt();
-
-        Velocity::from_cm_per_sec(v_k)
+    fn alpha(&self) -> f64 {
+        self.alpha
     }
 
-    /// Orbital period at radius r.
-    pub fn orbital_period(&self, r: Length) -> Time {
-        let omega = self.orbital_frequency(r);
-        Time::from_seconds(2.0 * PI / omega.to_rad_per_sec())
+    fn inner_radius(&self) -> Length {
+        self.inner_radius
     }
 
-    /// Isothermal sound speed at radius r.
-    /// c_s = √(k_B T / (μ m_p))
-    pub fn sound_speed(&self, r: Length) -> Velocity {
-        let t = self.temperature(r).to_kelvin();
-        let c_s = (K_B * t / (MU * M_PROTON)).sqrt();
-        Velocity::from_cm_per_sec(c_s)
+    fn outer_radius(&self) -> Length {
+        self.outer_radius
     }
 
-    /// Thermal velocity (mean molecular speed) at radius r.
-    /// v_th = √(8/π) × c_s ≈ 1.60 × c_s
-    pub fn thermal_velocity(&self, r: Length) -> Velocity {
-        let c_s = self.sound_speed(r).to_cm_per_sec();
-        Velocity::from_cm_per_sec(c_s * (8.0 / PI).sqrt())
-    }
-
-    /// Disk scale height at radius r.
-    /// h = c_s / Ω_K
-    pub fn scale_height(&self, r: Length) -> Length {
-        let c_s = self.sound_speed(r).to_cm_per_sec();
-        let omega = self.orbital_frequency(r).to_rad_per_sec();
-
-        Length::from_cm(c_s / omega)
-    }
-
-    /// Disk aspect ratio at radius r.
-    /// h/r = c_s / v_K
-    pub fn aspect_ratio(&self, r: Length) -> f64 {
-        let c_s = self.sound_speed(r).to_cm_per_sec();
-        let v_k = self.keplerian_velocity(r).to_cm_per_sec();
-
-        c_s / v_k
-    }
-
-    /// Midplane gas density at radius r.
-    /// ρ = Σ / (√(2π) × h)
+    /// Analytical pressure gradient for power-law disk.
     ///
-    /// This assumes a Gaussian vertical density profile.
-    pub fn midplane_density(&self, r: Length) -> Density {
-        let sigma = self.surface_density(r).to_grams_per_cm2();
-        let h = self.scale_height(r).to_cm();
-        let rho = sigma / ((2.0 * PI).sqrt() * h);
-
-        Density::from_grams_per_cm3(rho)
-    }
-
-    /// Midplane pressure at radius r.
-    /// P = ρ × c_s²
-    pub fn pressure(&self, r: Length) -> Pressure {
-        let rho = self.midplane_density(r).to_grams_per_cm3();
-        let c_s = self.sound_speed(r).to_cm_per_sec();
-
-        Pressure::from_dyn_per_cm2(rho * c_s.powi(2))
-    }
-
-    /// Logarithmic pressure gradient: d ln P / d ln r
-    ///
-    /// For power-law profiles with Σ ∝ r^(-p) and T ∝ r^(-q):
-    /// - ρ ∝ Σ/h ∝ r^(-p) / r^((3-q)/2) = r^(-(p + (3-q)/2))
-    /// - c_s² ∝ T ∝ r^(-q)
-    /// - P ∝ ρ c_s² ∝ r^(-(p + (3-q)/2 + q)) = r^(-(p + (3+q)/2))
-    ///
-    /// Therefore: d ln P / d ln r = -(p + (3+q)/2)
-    pub fn pressure_gradient_log(&self, _r: Length) -> f64 {
-        // For power-law disk, this is constant
+    /// For Σ ∝ r^(-p) and T ∝ r^(-q):
+    /// d ln P / d ln r = -(p + (3+q)/2)
+    fn pressure_gradient_log(&self, _r: Length) -> f64 {
         -(self.sigma_exponent + (3.0 + self.temp_exponent) / 2.0)
     }
+}
 
-    /// Pressure gradient parameter η.
+impl DiskMass for GasDisk {
+    /// Total disk mass using analytical integration.
     ///
-    /// η = -(h/r)² × (1/2) × d ln P / d ln r
-    ///
-    /// This parameter controls the sub-Keplerian rotation of gas:
-    /// v_φ,gas = v_K × (1 - η)
-    ///
-    /// For typical disk parameters, η ≈ 0.002-0.005.
-    pub fn pressure_gradient_parameter(&self, r: Length) -> f64 {
-        let h_over_r = self.aspect_ratio(r);
-        let d_ln_p = self.pressure_gradient_log(r);
-        -h_over_r.powi(2) * 0.5 * d_ln_p
-    }
-
-    /// Gas velocity relative to Keplerian.
-    /// Δv = v_K - v_φ,gas = η × v_K
-    ///
-    /// This is the "headwind" experienced by solid particles on
-    /// Keplerian orbits.
-    pub fn sub_keplerian_velocity(&self, r: Length) -> Velocity {
-        let eta = self.pressure_gradient_parameter(r);
-        let v_k = self.keplerian_velocity(r).to_cm_per_sec();
-        Velocity::from_cm_per_sec(eta * v_k)
-    }
-
-    /// Viscosity at radius r using α-prescription.
-    /// ν = α × c_s × h
-    pub fn viscosity(&self, r: Length) -> f64 {
-        let c_s = self.sound_speed(r).to_cm_per_sec();
-        let h = self.scale_height(r).to_cm();
-
-        self.alpha * c_s * h
-    }
-
-    /// Viscous timescale at radius r.
-    /// t_visc = r² / ν
-    pub fn viscous_timescale(&self, r: Length) -> Time {
-        let r_cm = r.to_cm();
-        let nu = self.viscosity(r);
-        Time::from_seconds(r_cm.powi(2) / nu)
-    }
-
-    /// Mean free path of gas molecules at radius r.
-    /// λ = μ m_p / (σ_mol × ρ)
-    ///
-    /// Uses σ_mol ≈ 2×10^(-15) cm² for H2.
-    pub fn mean_free_path(&self, r: Length) -> Length {
-        const SIGMA_MOL: f64 = 2e-15; // cm²
-        let rho = self.midplane_density(r).to_grams_per_cm3();
-        let lambda = MU * M_PROTON / (SIGMA_MOL * rho);
-
-        Length::from_cm(lambda)
-    }
-
-    /// Total disk mass between inner and outer radius.
     /// M_disk = ∫ 2πr Σ(r) dr
     ///
     /// For Σ ∝ r^(-p):
     /// - p ≠ 2: M = 2π Σ_0 r_0^p × (r_out^(2-p) - r_in^(2-p)) / (2-p)
     /// - p = 2: M = 2π Σ_0 r_0² × ln(r_out/r_in)
-    pub fn total_mass(&self) -> Mass {
+    fn total_mass(&self) -> Mass {
         let sigma_0 = self.sigma_0.to_grams_per_cm2();
         let r_0 = self.r_0.to_cm();
         let r_in = self.inner_radius.to_cm();
@@ -330,14 +202,5 @@ impl GasDisk {
         };
 
         Mass::from_grams(mass)
-    }
-
-    // =========================================================================
-    // Validation helpers
-    // =========================================================================
-
-    /// Check if radius is within disk bounds.
-    pub fn is_valid_radius(&self, r: Length) -> bool {
-        r.to_cm() >= self.inner_radius.to_cm() && r.to_cm() <= self.outer_radius.to_cm()
     }
 }
