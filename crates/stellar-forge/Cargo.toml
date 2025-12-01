@@ -13,3 +13,6 @@ serde_json = "1.0"
 ts-rs = "10.0"
 
 units = { path = "../units" }
+
+[dev-dependencies]
+approx = "0.5.1"

@@ -1,16 +1,7 @@
+use approx::assert_relative_eq;
+
 use crate::disk::gas_disk::GasDisk;
 use units::Length;
-
-/// Helper to check if two f64 values are approximately equal.
-fn approx_eq(a: f64, b: f64, rel_tol: f64) -> bool {
-    let diff = (a - b).abs();
-    let max = a.abs().max(b.abs());
-    if max == 0.0 {
-        diff < 1e-15
-    } else {
-        diff / max < rel_tol
-    }
-}
 
 #[test]
 fn mmsn_surface_density_at_1au() {
@@ -18,11 +9,7 @@ fn mmsn_surface_density_at_1au() {
     let sigma = disk.surface_density(Length::from_au(1.0));
 
     // Should be 1700 g/cm² at 1 AU by construction
-    assert!(
-        approx_eq(sigma.to_grams_per_cm2(), 1700.0, 1e-10),
-        "Σ at 1 AU: expected 1700, got {}",
-        sigma.to_grams_per_cm2()
-    );
+    assert_relative_eq!(sigma.to_grams_per_cm2(), 1700.0, max_relative = 1e-10);
 }
 
 #[test]
@@ -32,12 +19,7 @@ fn mmsn_surface_density_at_5au() {
 
     // Σ(5 AU) = 1700 × 5^(-1) = 340 g/cm²
     let expected = 1700.0 / 5.0;
-    assert!(
-        approx_eq(sigma.to_grams_per_cm2(), expected, 1e-10),
-        "Σ at 5 AU: expected {}, got {}",
-        expected,
-        sigma.to_grams_per_cm2()
-    );
+    assert_relative_eq!(sigma.to_grams_per_cm2(), expected, max_relative = 1e-10);
 }
 
 #[test]
@@ -46,11 +28,7 @@ fn mmsn_temperature_at_1au() {
     let t = disk.temperature(Length::from_au(1.0));
 
     // Should be 280 K at 1 AU by construction
-    assert!(
-        approx_eq(t.to_kelvin(), 280.0, 1e-10),
-        "T at 1 AU: expected 280, got {}",
-        t.to_kelvin()
-    );
+    assert_relative_eq!(t.to_kelvin(), 280.0, max_relative = 1e-10);
 }
 
 #[test]
@@ -60,12 +38,7 @@ fn mmsn_temperature_at_5au() {
 
     // T(5 AU) = 280 × 5^(-0.5) ≈ 125 K
     let expected = 280.0 / 5.0_f64.sqrt();
-    assert!(
-        approx_eq(t.to_kelvin(), expected, 1e-10),
-        "T at 5 AU: expected {:.1}, got {:.1}",
-        expected,
-        t.to_kelvin()
-    );
+    assert_relative_eq!(t.to_kelvin(), expected, max_relative = 1e-10);
 }
 
 #[test]
@@ -74,11 +47,7 @@ fn orbital_period_at_1au() {
     let period = disk.orbital_period(Length::from_au(1.0));
 
     // Should be ~1 year
-    assert!(
-        approx_eq(period.to_years(), 1.0, 0.01),
-        "Period at 1 AU: expected ~1 yr, got {:.3} yr",
-        period.to_years()
-    );
+    assert_relative_eq!(period.to_years(), 1.0, max_relative = 0.01);
 }
 
 #[test]
@@ -88,12 +57,7 @@ fn orbital_period_at_5au() {
 
     // Kepler's third law: P ∝ a^(3/2), so P(5 AU) ≈ 11.2 yr
     let expected = 5.0_f64.powf(1.5);
-    assert!(
-        approx_eq(period.to_years(), expected, 0.01),
-        "Period at 5 AU: expected {:.1} yr, got {:.1} yr",
-        expected,
-        period.to_years()
-    );
+    assert_relative_eq!(period.to_years(), expected, max_relative = 0.01);
 }
 
 #[test]

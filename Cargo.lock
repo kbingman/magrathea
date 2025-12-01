@@ -334,6 +334,7 @@ name = "stellar_forge"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "approx",
  "rand",
  "rand_chacha",
  "rand_distr",
