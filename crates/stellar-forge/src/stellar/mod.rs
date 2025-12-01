@@ -5,6 +5,7 @@ pub mod sampling;
 pub mod spectral;
 pub mod stellar_color;
 pub mod stellar_objects;
+pub mod stellar_radius;
 
 #[cfg(test)]
 mod generation_test;
@@ -19,6 +20,7 @@ mod stellar_color_test;
 pub use stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };
+pub use stellar_radius::StellarRadius;
 
 // Re-export spectral types
 pub use spectral::{LuminosityClass, SpectralType, VariabilityType};

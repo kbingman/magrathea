@@ -6,10 +6,11 @@
 
 use serde::{Deserialize, Serialize};
 use units::time::Time;
-use units::{Length, Mass, Temperature};
+use units::{Mass, Temperature};
 
 use super::spectral::{LuminosityClass, SpectralType, VariabilityType};
 use super::stellar_color::StellarColor;
+use super::stellar_radius::StellarRadius;
 
 /// Main sequence stars: core hydrogen burning stars
 ///
@@ -24,7 +25,7 @@ use super::stellar_color::StellarColor;
 #[serde(rename_all = "camelCase")]
 pub struct MainSequenceStar {
     pub mass: Mass,
-    pub radius: Length,
+    pub radius: StellarRadius,
     /// Luminosity in solar luminosities (L☉)
     pub luminosity: f64,
     pub temperature: Temperature,
@@ -52,7 +53,7 @@ pub struct MainSequenceStar {
 #[serde(rename_all = "camelCase")]
 pub struct GiantStar {
     pub mass: Mass,
-    pub radius: Length,
+    pub radius: StellarRadius,
     /// Luminosity in solar luminosities (L☉)
     pub luminosity: f64,
     pub temperature: Temperature,
@@ -78,7 +79,7 @@ pub struct GiantStar {
 #[serde(rename_all = "camelCase")]
 pub struct WhiteDwarf {
     pub mass: Mass,
-    pub radius: Length,
+    pub radius: StellarRadius,
     /// Luminosity in solar luminosities (L☉)
     pub luminosity: f64,
     pub temperature: Temperature,
@@ -115,7 +116,7 @@ pub enum WhiteDwarfType {
 #[serde(rename_all = "camelCase")]
 pub struct NeutronStar {
     pub mass: Mass,
-    pub radius: Length,
+    pub radius: StellarRadius,
     /// Magnetic field strength as log₁₀(B/Gauss)
     pub magnetic_field: f64,
     /// Whether this neutron star is observed as a pulsar

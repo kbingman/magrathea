@@ -1,6 +1,6 @@
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
-use units::{Length, Mass, Temperature, Time};
+use units::{Mass, Temperature, Time};
 
 use crate::stellar::generation::{
     black_hole, calculate_radius, calculate_subtype, estimate_lifetime, giant_star,
@@ -12,6 +12,7 @@ use crate::stellar::stellar_color::StellarColor;
 use crate::stellar::stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };
+use crate::stellar::stellar_radius::StellarRadius;
 
 #[test]
 fn white_dwarf_test() {
@@ -22,7 +23,7 @@ fn white_dwarf_test() {
         star,
         WhiteDwarf {
             mass: Mass::from_solar_masses(0.8228426056215805),
-            radius: Length::from_solar_radii(0.009000738823795101),
+            radius: StellarRadius::from_solar_radii(0.009000738823795101),
             luminosity: 0.0013714043427026344,
             temperature: Temperature::from_kelvin(11720.060071150392),
             spectral_type: WhiteDwarfType::DB,
@@ -40,7 +41,7 @@ fn neutron_star_test() {
         star,
         NeutronStar {
             mass: Mass::from_solar_masses(1.4249211795524308),
-            radius: Length::from_km(11.936648469868707),
+            radius: StellarRadius::from_km(11.936648469868707),
             magnetic_field: 11.362101818674972,
             magnetar: false,
             pulsar: true,
@@ -73,7 +74,7 @@ fn main_sequence_test() {
         star,
         MainSequenceStar {
             mass: Mass::from_solar_masses(1.0),
-            radius: Length::from_solar_radii(0.9924281807372175),
+            radius: StellarRadius::from_solar_radii(0.9924281807372175),
             luminosity: 1.0,
             metallicity: 0.0,
             age: Time::from_myr(1.0),
@@ -96,7 +97,7 @@ fn giant_star_test() {
         star,
         GiantStar {
             mass: Mass::from_solar_masses(27.21910704224043),
-            radius: Length::from_solar_radii(124.40092153463617),
+            radius: StellarRadius::from_solar_radii(124.40092153463617),
             luminosity: 642222.2222222221,
             temperature: Temperature::from_kelvin(14665.16896210703),
             spectral_type: SpectralType::B,

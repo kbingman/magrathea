@@ -6,7 +6,7 @@
 use rand::Rng;
 use rand_chacha::ChaChaRng;
 use units::time::Time;
-use units::{Length, Mass, Temperature};
+use units::{Mass, Temperature};
 
 use super::sampling::{sample_gaussian, sample_mass_kroupa, sample_metallicity};
 use super::spectral::{LuminosityClass, SpectralType, VariabilityType};
@@ -14,6 +14,7 @@ use super::stellar_color::StellarColor;
 use super::stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };
+use super::stellar_radius::StellarRadius;
 
 /// Solar temperature in Kelvin
 const SOLAR_TEMP: f64 = 5778.0;
@@ -71,7 +72,7 @@ pub fn main_sequence_star(mass_solar: f64, metallicity: f64, age_myr: f64) -> Ma
         luminosity,
         temperature: Temperature::from_kelvin(temperature),
         luminosity_class: LuminosityClass::V,
-        radius: Length::from_solar_radii(radius_solar),
+        radius: StellarRadius::from_solar_radii(radius_solar),
         subtype,
         variability: VariabilityType::determine_variability(
             mass_solar,
@@ -240,7 +241,7 @@ pub fn giant_star(rng: &mut ChaChaRng, initial_mass: f64) -> GiantStar {
 
     GiantStar {
         mass: Mass::from_solar_masses(mass_solar),
-        radius: Length::from_solar_radii(radius_solar),
+        radius: StellarRadius::from_solar_radii(radius_solar),
         luminosity,
         temperature: Temperature::from_kelvin(temp_kelvin),
         spectral_type,
@@ -285,7 +286,7 @@ pub fn white_dwarf(rng: &mut ChaChaRng) -> WhiteDwarf {
 
     WhiteDwarf {
         mass: Mass::from_solar_masses(mass_solar),
-        radius: Length::from_solar_radii(radius_solar),
+        radius: StellarRadius::from_solar_radii(radius_solar),
         luminosity,
         temperature: Temperature::from_kelvin(temp_kelvin),
         spectral_type,
@@ -349,7 +350,7 @@ pub fn neutron_star(rng: &mut ChaChaRng) -> NeutronStar {
 
     NeutronStar {
         mass: Mass::from_solar_masses(mass_solar),
-        radius: Length::from_km(radius_km),
+        radius: StellarRadius::from_km(radius_km),
         magnetic_field,
         pulsar,
         magnetar,
