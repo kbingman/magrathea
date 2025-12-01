@@ -45,7 +45,7 @@ pub fn circular_orbital_velocity(stellar_mass: f32, radius: f32) -> f32 {
     (stellar_mass / radius).sqrt() * ORBITAL_VELOCITY_SCALE_FACTOR
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct Velocity(f64); // Base unit: AU/year
 
 impl Velocity {

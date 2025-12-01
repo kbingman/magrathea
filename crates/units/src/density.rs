@@ -1,5 +1,5 @@
 /// Volume density in g/cm³
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct Density(pub f64);
 
 impl Density {

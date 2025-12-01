@@ -1,5 +1,5 @@
 /// Angular velocity in rad/s
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct AngularVelocity(pub f64);
 
 impl AngularVelocity {

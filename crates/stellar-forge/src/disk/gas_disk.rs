@@ -17,21 +17,23 @@
 //! The pressure gradient parameter η controls the sub-Keplerian rotation of
 //! gas and drives radial drift of solid particles.
 
+use serde::{Deserialize, Serialize};
+use units::{
+    AngularVelocity, Density, Length, Mass, Pressure, SurfaceDensity, Temperature, Time, Velocity,
+};
+
 use crate::{
     MainSequenceStar,
     disk::constants::{G, K_B, M_PROTON, MU, PI},
     solar_analog,
 };
 
-use units::{
-    AngularVelocity, Density, Length, Mass, Pressure, SurfaceDensity, Temperature, Time, Velocity,
-};
-
 /// A protoplanetary gas disk with power-law profiles.
 ///
 /// Surface density: Σ(r) = Σ_0 × (r / r_0)^(-p)
 /// Temperature: T(r) = T_0 × (r / r_0)^(-q)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GasDisk {
     /// Inner edge of the disk
     pub inner_radius: Length,

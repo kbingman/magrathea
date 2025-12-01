@@ -1,5 +1,5 @@
 /// Pressure in dyn/cm² (g/(cm·s²))
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct Pressure(pub f64);
 
 impl Pressure {
