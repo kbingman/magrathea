@@ -292,3 +292,141 @@ fn material_density_is_silicate() {
         epsilon = 1e-10
     );
 }
+
+// =============================================================================
+// Size-resolved queries
+// =============================================================================
+
+#[test]
+fn stokes_numbers_returns_one_per_bin() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let stokes = bin.stokes_numbers(&disk);
+
+    // Should have 30 bins (N_SIZE_BINS constant)
+    assert_eq!(stokes.len(), 30);
+
+    // All Stokes numbers should be positive
+    for (size, tau) in &stokes {
+        assert!(tau > &0.0, "τ_s should be positive for size {:?}", size);
+    }
+}
+
+#[test]
+fn stokes_numbers_increase_with_size() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let stokes = bin.stokes_numbers(&disk);
+
+    // Stokes number should increase monotonically with size
+    for i in 1..stokes.len() {
+        assert!(
+            stokes[i].1 > stokes[i - 1].1,
+            "τ_s should increase with size: bin {} ({:?}) has τ={}, bin {} ({:?}) has τ={}",
+            i - 1,
+            stokes[i - 1].0,
+            stokes[i - 1].1,
+            i,
+            stokes[i].0,
+            stokes[i].1
+        );
+    }
+}
+
+#[test]
+fn drift_velocities_returns_one_per_bin() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let velocities = bin.drift_velocities(&disk);
+
+    assert_eq!(velocities.len(), 30);
+}
+
+#[test]
+fn drift_velocities_all_inward() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let velocities = bin.drift_velocities(&disk);
+
+    // All drift should be inward (negative)
+    for (size, v) in &velocities {
+        assert!(
+            v.to_cm_per_sec() < 0.0,
+            "drift should be inward for size {:?}",
+            size
+        );
+    }
+}
+
+#[test]
+fn relative_velocity_zero_for_same_size() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let s = Length::from_cm(1e-5);
+    let dv = bin.relative_velocity(&disk, s, s);
+
+    // Same-size particles have zero differential drift
+    // (turbulent component is also zero for equal τ_s)
+    assert_relative_eq!(dv.to_cm_per_sec(), 0.0, epsilon = 1e-10);
+}
+
+#[test]
+fn relative_velocity_nonzero_for_different_sizes() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let s1 = Length::from_cm(1e-5); // 0.1 μm
+    let s2 = Length::from_cm(1e-4); // 1 μm
+    let dv = bin.relative_velocity(&disk, s1, s2);
+
+    // Different sizes should have nonzero relative velocity
+    assert!(
+        dv.to_cm_per_sec() > 0.0,
+        "relative velocity should be > 0 for different sizes"
+    );
+}
+
+#[test]
+fn relative_velocity_symmetric() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let s1 = Length::from_cm(1e-5);
+    let s2 = Length::from_cm(1e-4);
+
+    let dv_12 = bin.relative_velocity(&disk, s1, s2);
+    let dv_21 = bin.relative_velocity(&disk, s2, s1);
+
+    // Should be symmetric: |v1 - v2| = |v2 - v1|
+    assert_relative_eq!(
+        dv_12.to_cm_per_sec(),
+        dv_21.to_cm_per_sec(),
+        epsilon = 1e-10
+    );
+}
+
+#[test]
+fn relative_velocity_larger_for_larger_size_difference() {
+    let disk = test_disk();
+    let bin = ParticleBin::from_disk(&disk, Length::from_au(1.0), Length::from_au(0.1));
+
+    let s_small = Length::from_cm(1e-5);
+    let s_medium = Length::from_cm(3e-5);
+    let s_large = Length::from_cm(1e-4);
+
+    let dv_small_diff = bin.relative_velocity(&disk, s_small, s_medium);
+    let dv_large_diff = bin.relative_velocity(&disk, s_small, s_large);
+
+    // Larger size difference should give larger relative velocity
+    assert!(
+        dv_large_diff.to_cm_per_sec() > dv_small_diff.to_cm_per_sec(),
+        "larger size difference should give larger Δv: {} vs {}",
+        dv_large_diff.to_cm_per_sec(),
+        dv_small_diff.to_cm_per_sec()
+    );
+}

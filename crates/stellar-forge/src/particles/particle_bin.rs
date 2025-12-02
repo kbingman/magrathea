@@ -272,6 +272,139 @@ impl ParticleBin {
     }
 
     // =========================================================================
+    // Size-resolved properties
+    // =========================================================================
+
+    /// Stokes number for each size bin.
+    ///
+    /// Returns (size, Stokes_number) pairs for each bin in the distribution.
+    pub fn stokes_numbers<D: DiskModel>(&self, disk: &D) -> Vec<(Length, f64)> {
+        let r = self.radial_center();
+        let rho_m = self.material_density();
+
+        self.size_distribution
+            .bins()
+            .into_iter()
+            .map(|(size, _mass)| {
+                let particle = Particle::new(size, rho_m);
+                (size, particle.stokes_number(disk, r))
+            })
+            .collect()
+    }
+
+    /// Radial drift velocity for each size bin.
+    ///
+    /// Returns (size, velocity) pairs. Negative velocity indicates inward drift.
+    pub fn drift_velocities<D: DiskModel>(&self, disk: &D) -> Vec<(Length, Velocity)> {
+        let r = self.radial_center();
+        let rho_m = self.material_density();
+
+        self.size_distribution
+            .bins()
+            .into_iter()
+            .map(|(size, _mass)| {
+                let particle = Particle::new(size, rho_m);
+                (size, particle.radial_drift_velocity(disk, r))
+            })
+            .collect()
+    }
+
+    /// Relative velocity between particles of two sizes.
+    ///
+    /// This is the key quantity for collision rates. Includes contributions from:
+    /// - Differential radial drift
+    /// - Differential azimuthal drift
+    /// - Turbulent relative velocities (Ormel & Cuzzi 2007)
+    ///
+    /// # Arguments
+    /// * `disk` - Gas disk model
+    /// * `s1` - First particle size
+    /// * `s2` - Second particle size
+    pub fn relative_velocity<D: DiskModel>(&self, disk: &D, s1: Length, s2: Length) -> Velocity {
+        let r = self.radial_center();
+        let rho_m = self.material_density();
+
+        let p1 = Particle::new(s1, rho_m);
+        let p2 = Particle::new(s2, rho_m);
+
+        // Differential radial drift
+        let v_r1 = p1.radial_drift_velocity(disk, r).to_cm_per_sec();
+        let v_r2 = p2.radial_drift_velocity(disk, r).to_cm_per_sec();
+        let dv_r = (v_r1 - v_r2).abs();
+
+        // Differential azimuthal drift
+        let v_phi1 = p1.azimuthal_drift_velocity(disk, r).to_cm_per_sec();
+        let v_phi2 = p2.azimuthal_drift_velocity(disk, r).to_cm_per_sec();
+        let dv_phi = (v_phi1 - v_phi2).abs();
+
+        // Turbulent relative velocity
+        let dv_turb = self.turbulent_relative_velocity(disk, s1, s2);
+
+        // Quadrature sum (independent sources add in quadrature)
+        let dv_total = (dv_r.powi(2) + dv_phi.powi(2) + dv_turb.powi(2)).sqrt();
+
+        Velocity::from_cm_per_sec(dv_total)
+    }
+
+    /// Turbulent relative velocity between two particle sizes.
+    ///
+    /// Follows the prescription of Ormel & Cuzzi (2007) for closed-form
+    /// turbulent collision velocities.
+    ///
+    /// For particles with Stokes numbers τ1 and τ2 in a turbulent flow:
+    /// - If both τ << 1: particles couple to same eddies, low relative velocity
+    /// - If τ1 ~ 1, τ2 << 1: large particle decoupled, small coupled → high Δv
+    /// - If both τ >> 1: both decoupled from gas, low relative velocity
+    fn turbulent_relative_velocity<D: DiskModel>(&self, disk: &D, s1: Length, s2: Length) -> f64 {
+        let r = self.radial_center();
+        let rho_m = self.material_density();
+        let alpha = disk.alpha();
+
+        let p1 = Particle::new(s1, rho_m);
+        let p2 = Particle::new(s2, rho_m);
+
+        let tau1 = p1.stokes_number(disk, r);
+        let tau2 = p2.stokes_number(disk, r);
+
+        // Turbulent velocity of the gas: v_turb ~ sqrt(α) × c_s
+        let c_s = disk.sound_speed(r).to_cm_per_sec();
+        let v_turb_gas = alpha.sqrt() * c_s;
+
+        // Ormel & Cuzzi (2007) approximation for relative velocity
+        // For simplicity, use the intermediate regime formula:
+        // Δv_turb ≈ v_turb × sqrt(|τ1 - τ2| / (τ1 + τ2 + Re_t^(-1/2)))
+        //
+        // where Re_t is the turbulent Reynolds number.
+        // For α ~ 10^-3 disks, Re_t ~ 10^8, so Re_t^(-1/2) ~ 10^-4 is negligible.
+        //
+        // Simplified formula:
+        // Δv_turb ≈ v_turb × sqrt(3 × τ_s) for τ_s << 1
+        // Δv_turb ≈ v_turb × sqrt(3 / τ_s) for τ_s >> 1
+        //
+        // General interpolation (Ormel & Cuzzi eq. 27):
+        let tau_max = tau1.max(tau2);
+        let tau_min = tau1.min(tau2);
+
+        if tau_max < 1e-10 {
+            // Both extremely small - Brownian motion dominates (not included here)
+            return 0.0;
+        }
+
+        // Regime-dependent formula
+        if tau_max < 1.0 {
+            // Both tightly coupled: Δv ~ v_turb × sqrt(τ_max - τ_min)
+            v_turb_gas * (1.5 * (tau_max - tau_min).abs()).sqrt()
+        } else if tau_min > 1.0 {
+            // Both loosely coupled: Δv ~ v_turb / sqrt(τ_min)
+            v_turb_gas * (1.0 / tau_min).sqrt()
+        } else {
+            // Mixed regime: large particle decoupled, small coupled
+            // This gives maximum relative velocity
+            v_turb_gas * (1.5 * tau_max).sqrt().min(1.5 * v_turb_gas)
+        }
+    }
+
+    // =========================================================================
     // Mutation
     // =========================================================================
 

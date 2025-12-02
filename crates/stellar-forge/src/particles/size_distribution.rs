@@ -382,6 +382,60 @@ impl SizeDistribution {
         }
     }
 
+    /// Number of size bins (for Binned variant).
+    ///
+    /// Returns 1 for Monodisperse, 0 for PowerLaw (must convert first).
+    pub fn n_bins(&self) -> usize {
+        match self {
+            Self::PowerLaw { .. } => 0,
+            Self::Monodisperse { .. } => 1,
+            Self::Binned { mass_per_bin, .. } => mass_per_bin.len(),
+        }
+    }
+
+    /// Iterator over (bin_center, mass) pairs for binned distributions.
+    ///
+    /// For Binned variant, yields the geometric center of each bin and its mass.
+    /// For Monodisperse, yields the single (size, mass) pair.
+    /// For PowerLaw, returns empty iterator (convert to binned first).
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::SizeDistribution;
+    /// use units::{Density, Length, Mass};
+    ///
+    /// let dist = SizeDistribution::mrn(
+    ///     Mass::from_grams(1000.0),
+    ///     Density::from_grams_per_cm3(3.0),
+    /// ).to_binned(10);
+    ///
+    /// for (size, mass) in dist.bins() {
+    ///     println!("size = {} cm, mass = {} g", size.to_cm(), mass.to_grams());
+    /// }
+    /// ```
+    pub fn bins(&self) -> Vec<(Length, Mass)> {
+        match self {
+            Self::PowerLaw { .. } => vec![],
+            Self::Monodisperse {
+                size, total_mass, ..
+            } => {
+                vec![(Length::from_cm(*size), Mass::from_grams(*total_mass))]
+            }
+            Self::Binned {
+                bin_edges,
+                mass_per_bin,
+                ..
+            } => bin_edges
+                .windows(2)
+                .zip(mass_per_bin.iter())
+                .map(|(edges, &mass)| {
+                    let center = (edges[0] * edges[1]).sqrt();
+                    (Length::from_cm(center), Mass::from_grams(mass))
+                })
+                .collect(),
+        }
+    }
+
     /// Convert to a binned representation with the given number of bins.
     ///
     /// Preserves total mass. Useful for coagulation calculations.

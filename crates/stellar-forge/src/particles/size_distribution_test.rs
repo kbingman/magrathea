@@ -352,3 +352,76 @@ fn to_binned_is_idempotent() {
         binned2.total_mass().to_grams()
     );
 }
+
+// =============================================================================
+// Bin iteration tests
+// =============================================================================
+
+#[test]
+fn bins_returns_correct_count() {
+    let dist = SizeDistribution::power_law(
+        Length::from_cm(1e-4),
+        Length::from_cm(0.1),
+        3.5,
+        test_mass(),
+        silicate_density(),
+    )
+    .to_binned(20);
+
+    let bins = dist.bins();
+    assert_eq!(bins.len(), 20);
+    assert_eq!(dist.n_bins(), 20);
+}
+
+#[test]
+fn bins_mass_sums_to_total() {
+    let dist = SizeDistribution::mrn(test_mass(), silicate_density()).to_binned(30);
+
+    let bin_mass_sum: f64 = dist.bins().iter().map(|(_, m)| m.to_grams()).sum();
+
+    assert_relative_eq!(bin_mass_sum, dist.total_mass().to_grams(), epsilon = 1e-10);
+}
+
+#[test]
+fn bins_sizes_are_geometric_means() {
+    let dist = SizeDistribution::binned_empty(
+        Length::from_cm(1.0),
+        Length::from_cm(100.0),
+        2,
+        silicate_density(),
+    );
+
+    let bins = dist.bins();
+    // First bin: edges 1-10, center = sqrt(1*10) = sqrt(10) ≈ 3.16
+    // Second bin: edges 10-100, center = sqrt(10*100) = sqrt(1000) ≈ 31.6
+    assert_eq!(bins.len(), 2);
+    assert_relative_eq!(bins[0].0.to_cm(), 10.0_f64.sqrt(), epsilon = 0.01);
+    assert_relative_eq!(bins[1].0.to_cm(), 1000.0_f64.sqrt(), epsilon = 0.1);
+}
+
+#[test]
+fn monodisperse_bins_returns_single() {
+    let dist =
+        SizeDistribution::monodisperse(Length::from_cm(0.05), test_mass(), silicate_density());
+
+    let bins = dist.bins();
+    assert_eq!(bins.len(), 1);
+    assert_relative_eq!(bins[0].0.to_cm(), 0.05);
+    assert_relative_eq!(bins[0].1.to_grams(), 1000.0);
+}
+
+#[test]
+fn power_law_bins_returns_empty() {
+    // PowerLaw should return empty - must convert to binned first
+    let dist = SizeDistribution::power_law(
+        Length::from_cm(1e-4),
+        Length::from_cm(0.1),
+        3.5,
+        test_mass(),
+        silicate_density(),
+    );
+
+    let bins = dist.bins();
+    assert!(bins.is_empty());
+    assert_eq!(dist.n_bins(), 0);
+}
