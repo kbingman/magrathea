@@ -3,7 +3,8 @@
 //! This module provides the physics of solid particles in gas disks:
 //! - Drag regimes (Epstein, Stokes)
 //! - Stopping times and Stokes numbers
-//! - Radial drift and vertical settling (future)
+//! - Radial drift and vertical settling
+//! - Size distributions for particle populations
 //!
 //! # Physics
 //!
@@ -18,10 +19,20 @@
 //! - τ_s << 1: tightly coupled to gas
 //! - τ_s ~ 1: maximum radial drift
 //! - τ_s >> 1: decoupled from gas
+//!
+//! # Size Distributions
+//!
+//! Particle populations are represented statistically via size distributions.
+//! The MRN distribution (q = 3.5) is typical for ISM dust. Coagulation
+//! evolves the distribution toward larger sizes.
 
 mod particle;
+mod size_distribution;
 
 #[cfg(test)]
 mod particle_test;
+#[cfg(test)]
+mod size_distribution_test;
 
 pub use particle::{DragRegime, Particle};
+pub use size_distribution::SizeDistribution;
