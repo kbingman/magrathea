@@ -18,4 +18,4 @@ pub use stellar::generation::{
     sample_stellar_object, solar_analog, stellar_object, white_dwarf,
 };
 
-pub use disk::GasDisk;
+pub use disk::{DiskMass, DiskModel, GasDisk, GridDisk};

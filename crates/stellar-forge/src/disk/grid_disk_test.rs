@@ -140,3 +140,101 @@ fn interpolation_at_grid_points_exact() {
         assert_relative_eq!(sigma_interp, sigma_stored, max_relative = 1e-10);
     }
 }
+
+// =============================================================================
+// Viscous evolution tests
+// =============================================================================
+
+#[test]
+fn max_timestep_is_positive() {
+    let power_law = GasDisk::mmsn();
+    let grid = GridDisk::from_gas_disk(&power_law, 200);
+
+    let dt = grid.max_timestep();
+    assert!(dt > 0.0, "max_timestep should be positive");
+    assert!(dt < 1e20, "max_timestep should be finite");
+}
+
+#[test]
+fn viscous_evolution_depletes_inner_disk() {
+    let power_law = GasDisk::mmsn();
+    let mut grid = GridDisk::from_gas_disk(&power_law, 200);
+
+    // Record initial surface density at inner region
+    let sigma_inner_initial = grid
+        .surface_density(Length::from_au(0.5))
+        .to_grams_per_cm2();
+
+    // Evolve for 0.1 viscous times at 1 AU
+    let t_visc = grid.viscous_timescale(Length::from_au(1.0));
+    let evolution_time = 0.1 * t_visc.to_seconds();
+
+    let dt = grid.max_timestep();
+    let n_steps = (evolution_time / dt).ceil() as usize;
+
+    for _ in 0..n_steps {
+        grid.evolve_viscous(dt);
+    }
+
+    // Inner disk should have depleted
+    let sigma_inner_final = grid
+        .surface_density(Length::from_au(0.5))
+        .to_grams_per_cm2();
+
+    assert!(
+        sigma_inner_final < sigma_inner_initial,
+        "Inner disk should deplete: initial {:.2e}, final {:.2e}",
+        sigma_inner_initial,
+        sigma_inner_final
+    );
+}
+
+#[test]
+fn viscous_evolution_spreads_outer_disk() {
+    let power_law = GasDisk::mmsn();
+    let mut grid = GridDisk::from_gas_disk(&power_law, 200);
+
+    // Record initial surface density at outer region
+    let sigma_outer_initial = grid
+        .surface_density(Length::from_au(50.0))
+        .to_grams_per_cm2();
+
+    // Evolve for 0.1 viscous times at 1 AU
+    let t_visc = grid.viscous_timescale(Length::from_au(1.0));
+    let evolution_time = 0.1 * t_visc.to_seconds();
+
+    let dt = grid.max_timestep();
+    let n_steps = (evolution_time / dt).ceil() as usize;
+
+    for _ in 0..n_steps {
+        grid.evolve_viscous(dt);
+    }
+
+    // Outer disk should have gained mass (spreading)
+    let sigma_outer_final = grid
+        .surface_density(Length::from_au(50.0))
+        .to_grams_per_cm2();
+
+    assert!(
+        sigma_outer_final > sigma_outer_initial,
+        "Outer disk should spread: initial {:.2e}, final {:.2e}",
+        sigma_outer_initial,
+        sigma_outer_final
+    );
+}
+
+#[test]
+fn viscous_timescale_reasonable() {
+    let power_law = GasDisk::mmsn();
+    let grid = GridDisk::from_gas_disk(&power_law, 200);
+
+    let t_visc = grid.viscous_timescale(Length::from_au(1.0));
+
+    // Should be ~10^5 to 10^6 years for α = 10^(-3)
+    let t_yr = t_visc.to_years();
+    assert!(
+        t_yr > 1e4 && t_yr < 1e7,
+        "t_visc at 1 AU: expected ~10^5-10^6 yr, got {:.2e} yr",
+        t_yr
+    );
+}

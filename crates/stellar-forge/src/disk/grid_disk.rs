@@ -11,7 +11,7 @@ use units::{Length, Mass, SurfaceDensity, Temperature};
 
 use super::disk_model::{DiskMass, DiskModel};
 use super::gas_disk::GasDisk;
-use crate::disk::constants::PI;
+use crate::disk::constants::{G, K_B, M_PROTON, MU, PI};
 
 /// A protoplanetary disk with surface density stored on a radial grid.
 ///
@@ -198,6 +198,113 @@ impl GridDisk {
         let log_sigma_ip1 = self.sigma[i + 1].ln();
 
         (log_sigma_i + t * (log_sigma_ip1 - log_sigma_i)).exp()
+    }
+
+    // =========================================================================
+    // Viscous evolution
+    // =========================================================================
+
+    /// Evolve the disk for one timestep using explicit finite differences.
+    ///
+    /// Solves the viscous diffusion equation:
+    /// ```text
+    /// ∂Σ/∂t = (3/r) ∂/∂r [r^(1/2) ∂/∂r (ν Σ r^(1/2))]
+    /// ```
+    ///
+    /// Uses the formulation from Pringle (1981) transformed to work with
+    /// the quantity X = ν Σ r^(1/2).
+    ///
+    /// # Arguments
+    /// * `dt` - Timestep in seconds. Should be less than `max_timestep()` for stability.
+    ///
+    /// # Boundary conditions
+    /// - Inner edge: zero-torque (Σ extrapolated from interior)
+    /// - Outer edge: zero-flux (Σ extrapolated from interior)
+    pub fn evolve_viscous(&mut self, dt: f64) {
+        let n = self.radii.len();
+
+        // Compute viscosity at each grid point
+        let nu: Vec<f64> = (0..n).map(|i| self.viscosity_at(i)).collect();
+
+        // Work with G = Σ × r^(1/2) which simplifies the diffusion equation
+        // to: ∂G/∂t = (3/r^(1/2)) ∂/∂r [ν r^(1/2) ∂G/∂r]
+        let g: Vec<f64> = (0..n)
+            .map(|i| self.sigma[i] * self.radii[i].sqrt())
+            .collect();
+
+        let mut new_sigma = self.sigma.clone();
+
+        // Interior points
+        for i in 1..n - 1 {
+            let r_i = self.radii[i];
+            let r_m = self.radii[i - 1];
+            let r_p = self.radii[i + 1];
+
+            // Cell face positions (geometric mean for log grid)
+            let r_mh = (r_m * r_i).sqrt(); // r_{i-1/2}
+            let r_ph = (r_i * r_p).sqrt(); // r_{i+1/2}
+
+            // Viscosity at cell faces (average)
+            let nu_mh = 0.5 * (nu[i - 1] + nu[i]);
+            let nu_ph = 0.5 * (nu[i] + nu[i + 1]);
+
+            // ∂G/∂r at cell faces
+            let dg_dr_mh = (g[i] - g[i - 1]) / (r_i - r_m);
+            let dg_dr_ph = (g[i + 1] - g[i]) / (r_p - r_i);
+
+            // Flux F = ν r^(1/2) ∂G/∂r at cell faces
+            let f_mh = nu_mh * r_mh.sqrt() * dg_dr_mh;
+            let f_ph = nu_ph * r_ph.sqrt() * dg_dr_ph;
+
+            // ∂F/∂r at cell center
+            let df_dr = (f_ph - f_mh) / (r_ph - r_mh);
+
+            // ∂G/∂t = (3/r^(1/2)) ∂F/∂r
+            let dg_dt = 3.0 / r_i.sqrt() * df_dr;
+
+            // Update: Σ = G / r^(1/2)
+            let new_g = g[i] + dg_dt * dt;
+            new_sigma[i] = (new_g / r_i.sqrt()).max(1e-30);
+        }
+
+        // Boundary conditions
+        // Inner: zero-torque (extrapolate from interior)
+        new_sigma[0] = new_sigma[1];
+        // Outer: zero-flux (extrapolate from interior)
+        new_sigma[n - 1] = new_sigma[n - 2];
+
+        self.sigma = new_sigma;
+    }
+
+    /// Maximum stable timestep for explicit evolution (CFL condition).
+    ///
+    /// Returns the largest dt that won't cause numerical instability.
+    /// For the viscous diffusion equation, the constraint is:
+    /// dt < dr² / (6ν) with a safety factor.
+    pub fn max_timestep(&self) -> f64 {
+        let n = self.radii.len();
+
+        (0..n - 1)
+            .map(|i| {
+                let dr = self.radii[i + 1] - self.radii[i];
+                let nu = self.viscosity_at(i);
+                // CFL condition for diffusion: dt < dr² / (6ν)
+                // Use safety factor of 0.1 for stability
+                0.1 * dr * dr / (6.0 * nu)
+            })
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    /// Compute viscosity at grid point i.
+    /// ν = α × c_s × h
+    fn viscosity_at(&self, i: usize) -> f64 {
+        let r = self.radii[i];
+        let t = self.temp_0 * (r / self.r_0).powf(-self.temp_exponent);
+        let c_s = (K_B * t / (MU * M_PROTON)).sqrt();
+        let omega = (G * self.stellar_mass / r.powi(3)).sqrt();
+        let h = c_s / omega;
+
+        self.alpha * c_s * h
     }
 }
 
