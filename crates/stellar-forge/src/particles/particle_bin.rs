@@ -21,6 +21,9 @@ const DUST_TO_GAS_RATIO: f64 = 0.01;
 /// Default material density for silicate grains (g/cm³).
 const SILICATE_DENSITY: f64 = 3.0;
 
+/// Number of size bins for discretized distributions.
+const N_SIZE_BINS: usize = 30;
+
 /// A population of solid particles in a radial annulus of the disk.
 ///
 /// Tracks the spatial distribution, size distribution, and bulk properties
@@ -99,11 +102,12 @@ impl ParticleBin {
         let area = PI * (r_out.powi(2) - r_in.powi(2));
         let total_mass = sigma_dust * area;
 
-        // MRN size distribution
+        // MRN size distribution, converted to binned for uniform iteration
         let size_dist = SizeDistribution::mrn(
             Mass::from_grams(total_mass),
             Density::from_grams_per_cm3(SILICATE_DENSITY),
-        );
+        )
+        .to_binned(N_SIZE_BINS);
 
         // Initially well-mixed with gas
         let h_gas = disk.scale_height(r).to_cm();
