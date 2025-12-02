@@ -27,12 +27,16 @@
 //! evolves the distribution toward larger sizes.
 
 mod particle;
+mod particle_bin;
 mod size_distribution;
 
+#[cfg(test)]
+mod particle_bin_test;
 #[cfg(test)]
 mod particle_test;
 #[cfg(test)]
 mod size_distribution_test;
 
 pub use particle::{DragRegime, Particle};
+pub use particle_bin::ParticleBin;
 pub use size_distribution::SizeDistribution;

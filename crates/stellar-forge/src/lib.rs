@@ -20,4 +20,4 @@ pub use stellar::generation::{
 };
 
 pub use disk::{DiskMass, DiskModel, GasDisk, GridDisk};
-pub use particles::{DragRegime, Particle, SizeDistribution};
+pub use particles::{DragRegime, Particle, ParticleBin, SizeDistribution};
