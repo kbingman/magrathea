@@ -3,6 +3,7 @@
 //! This crate provides types and generation functions for stars and stellar remnants.
 
 pub mod disk;
+pub mod particles;
 pub mod stellar;
 
 // Re-export types for convenience
@@ -19,3 +20,4 @@ pub use stellar::generation::{
 };
 
 pub use disk::{DiskMass, DiskModel, GasDisk, GridDisk};
+pub use particles::{DragRegime, Particle};

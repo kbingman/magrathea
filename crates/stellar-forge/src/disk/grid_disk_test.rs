@@ -227,7 +227,9 @@ fn viscous_evolution_spreads_outer_disk() {
 
     // Check that some intermediate radius gains mass
     // At 2-5 AU, material should accumulate as the inner disk drains
-    let sigma_2au_final = grid.surface_density(Length::from_au(2.0)).to_grams_per_cm2();
+    let sigma_2au_final = grid
+        .surface_density(Length::from_au(2.0))
+        .to_grams_per_cm2();
     let sigma_2au_initial = sigma_initial[2]; // index 2 = 2.0 AU
 
     assert!(
@@ -270,10 +272,7 @@ fn viscous_evolution_does_not_create_mass() {
         if step % 20_000 == 0 {
             let mass = grid.total_mass().to_solar_masses();
             let change = ((mass / initial_mass) - 1.0) * 100.0;
-            println!(
-                "Step {}: mass={:.6} M_sun ({:+.2}%)",
-                step, mass, change
-            );
+            println!("Step {}: mass={:.6} M_sun ({:+.2}%)", step, mass, change);
         }
     }
 
