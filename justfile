@@ -10,3 +10,6 @@ install-rust:
 
 install-ts:
   npm install
+
+build-wasm:
+  wasm-pack build crates/magrathea-wasm --target web --scope magrathea
