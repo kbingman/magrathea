@@ -123,7 +123,7 @@ function drawDisk(
 
   const { radiiAu, sigmaGCm2 } = profile;
 
-  // Use current min/max for color contrast
+  // Use current min/max for good contrast
   const maxSigma = Math.max(...sigmaGCm2);
   const minSigma = Math.min(...sigmaGCm2);
 

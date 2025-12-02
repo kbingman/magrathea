@@ -268,10 +268,12 @@ impl GridDisk {
         }
 
         // Boundary conditions
-        // Inner: zero-torque (extrapolate from interior)
-        new_sigma[0] = new_sigma[1];
-        // Outer: zero-flux (extrapolate from interior)
-        new_sigma[n - 1] = new_sigma[n - 2];
+        // Inner: outflow boundary - mass accretes onto star
+        new_sigma[0] = 0.0;
+
+        // Outer: fixed boundary - keep original value to prevent mass creation
+        // The interior will evolve, but we don't update the boundary
+        new_sigma[n - 1] = self.sigma[n - 1];
 
         self.sigma = new_sigma;
     }
