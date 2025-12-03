@@ -63,7 +63,8 @@ impl PlanetarySystem {
             let a1 = inner.semi_major_axis.to_au();
             let a2 = outer.semi_major_axis.to_au();
 
-            let mutual_hill = ((m1 + m2) / (3.0 * self.stellar_mass)).powf(1.0 / 3.0) * ((a1 + a2) / 2.0);
+            let mutual_hill =
+                ((m1 + m2) / (3.0 * self.stellar_mass)).powf(1.0 / 3.0) * ((a1 + a2) / 2.0);
             let separation = a2 - a1;
 
             if separation / mutual_hill < 8.0 {
