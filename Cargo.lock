@@ -188,6 +188,7 @@ dependencies = [
  "rand_chacha",
  "rand_distr",
  "serde",
+ "stellar",
  "units",
 ]
 

@@ -10,6 +10,7 @@
 
 use rand::Rng;
 use rand_chacha::ChaChaRng;
+use stellar::MainSequenceStar;
 use units::{Length, Mass};
 
 use crate::composition::Composition;
@@ -96,6 +97,39 @@ pub fn generate_planetary_system(
         spectral_type.to_string(),
         planets,
         architecture,
+    )
+}
+
+/// Generate a planetary system from a `MainSequenceStar`
+///
+/// This is a convenience function that extracts stellar properties from a
+/// `MainSequenceStar` and delegates to `generate_planetary_system`.
+///
+/// # Example
+/// ```ignore
+/// use rand::SeedableRng;
+/// use rand_chacha::ChaChaRng;
+/// use stellar::sample_main_sequence_star;
+/// use planetary::from_star;
+///
+/// let mut rng = ChaChaRng::seed_from_u64(42);
+/// let star = sample_main_sequence_star(&mut rng);
+/// let system = from_star(&mut rng, &star);
+/// ```
+pub fn from_star(rng: &mut ChaChaRng, star: &MainSequenceStar) -> PlanetarySystem {
+    let stellar_mass = star.mass.to_solar_masses();
+    let stellar_luminosity = star.luminosity;
+    let stellar_temperature = star.temperature.to_kelvin();
+    let stellar_metallicity = star.metallicity;
+    let spectral_type = format!("{}", star.spectral_type);
+
+    generate_planetary_system(
+        rng,
+        stellar_mass,
+        stellar_luminosity,
+        stellar_temperature,
+        stellar_metallicity,
+        &spectral_type,
     )
 }
 

@@ -6,6 +6,9 @@ pub mod planet_type;
 pub mod sampling;
 pub mod system;
 
+// Re-export key generation functions at crate root
+pub use generation::{from_star, generate_planetary_system};
+
 #[cfg(test)]
 pub mod composition_test;
 #[cfg(test)]
