@@ -11,7 +11,10 @@
 use rand::Rng;
 use rand_chacha::ChaChaRng;
 use stellar::MainSequenceStar;
-use units::{Length, Mass};
+use units::{EARTH_MASS_G, Length, Mass, SOLAR_MASS_G};
+
+/// Earth masses per solar mass (M☉/M⊕)
+const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 
 use crate::composition::Composition;
 use crate::planet::Planet;
@@ -37,6 +40,11 @@ const ICE_GIANT_BASE_RATE: f64 = 0.35;
 /// Probability of wide companions (50-300 AU)
 /// From Nielsen+ 2019, Vigan+ 2021: ~1-3% of systems
 const WIDE_COMPANION_RATE: f64 = 0.02;
+
+/// Maximum planet-to-star mass ratio
+/// Prevents unrealistic massive planets around low-mass stars
+/// ~1% is roughly the brown dwarf boundary for M-dwarfs
+const MAX_PLANET_STAR_MASS_RATIO: f64 = 0.01;
 
 // =============================================================================
 // Stellar Context
@@ -67,6 +75,25 @@ impl StellarContext {
     /// Snow line distance in AU
     fn snow_line(&self) -> f64 {
         snow_line(self.luminosity)
+    }
+
+    /// Maximum planet mass in Earth masses based on stellar mass
+    ///
+    /// Caps planet mass at ~1% of stellar mass to prevent unrealistic
+    /// massive planets around low-mass stars.
+    fn max_planet_mass(&self) -> f64 {
+        self.mass * EARTH_MASSES_PER_SOLAR * MAX_PLANET_STAR_MASS_RATIO
+    }
+
+    /// Giant planet occurrence scaling factor based on stellar mass
+    ///
+    /// Johnson et al. (2010) found giant occurrence scales roughly as M_star^1.0-1.5
+    /// This means M-dwarfs should have ~10× fewer giants than Sun-like stars.
+    fn giant_occurrence_scaling(&self) -> f64 {
+        // Scale relative to solar mass with exponent ~1.5
+        // For 0.1 M☉ star: 0.1^1.5 = 0.03 (3% of solar rate)
+        // For 0.5 M☉ star: 0.5^1.5 = 0.35 (35% of solar rate)
+        self.mass.powf(1.5)
     }
 }
 
@@ -187,19 +214,40 @@ fn generate_mixed_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Plan
 /// - Cold Jupiter systems (~80%): Giant(s) near snow line, may have ice giants
 fn generate_giant_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
     let sl = star.snow_line();
+    let max_mass = star.max_planet_mass();
+
+    // For low-mass stars, cap giant mass appropriately
+    // Minimum mass for a "giant" is ~50 M⊕ (Saturn-class)
+    let min_giant_mass = 50.0_f64;
+    if max_mass < min_giant_mass {
+        // Star too small for true giants - generate sub-giants instead
+        return generate_n_spaced_planets(rng, star, 1, sl * 1.0, sl * 4.0, 10.0..max_mass);
+    }
+
     let hot_jupiter = rng.random::<f64>() < 0.2;
+
+    // Scale giant mass range by stellar mass
+    let giant_max = max_mass.min(1000.0);
+    let giant_min = min_giant_mass.min(giant_max * 0.5);
 
     let mut planets = if hot_jupiter {
         // Hot Jupiter: P < 10 days, migrated inward
         // Hot Jupiters are "lonely" - migration clears inner system
-        let mass = sample_giant_mass(rng);
+        let mass = sample_giant_mass_for_star(rng, star);
         let period = rng.random_range(2.0..10.0);
         let sma = period_to_semi_major_axis(period, star.mass);
         vec![create_planet(rng, star, mass, sma)]
     } else {
         // Cold giant(s) in Jupiter zone
         let n_giants: usize = rng.random_range(1..=2);
-        generate_n_spaced_planets(rng, star, n_giants, sl * 1.5, sl * 6.0, 100.0..1000.0)
+        generate_n_spaced_planets(
+            rng,
+            star,
+            n_giants,
+            sl * 1.5,
+            sl * 6.0,
+            giant_min..giant_max,
+        )
     };
 
     // Cold giant systems often have ice giants further out
@@ -271,8 +319,12 @@ fn generate_outer_system(
 
     // Cold giant(s) in the Jupiter zone (1.5-6× snow line)
     // Strong metallicity dependence: P(giant) ∝ 10^(2×[Fe/H])
+    // Also scales with stellar mass: Johnson+ 2010 found P(giant) ∝ M_star^1-1.5
     let metallicity_boost = 10.0_f64.powf(2.0 * star.metallicity);
-    let cold_giant_prob = (COLD_GIANT_BASE_RATE * cold_giant_modifier * metallicity_boost).min(0.9);
+    let stellar_mass_scaling = star.giant_occurrence_scaling();
+    let cold_giant_prob =
+        (COLD_GIANT_BASE_RATE * cold_giant_modifier * metallicity_boost * stellar_mass_scaling)
+            .min(0.9);
 
     let giant_roll = rng.random::<f64>();
     if giant_roll < cold_giant_prob {
@@ -320,7 +372,12 @@ fn generate_ice_giants(
     star: &StellarContext,
     probability: f64,
 ) -> Vec<Planet> {
-    if rng.random::<f64>() > probability {
+    // Ice giants have weaker stellar mass dependence than gas giants
+    // Use sqrt scaling (exponent 0.5) instead of 1.5
+    let stellar_scaling = star.mass.powf(0.5);
+    let scaled_prob = probability * stellar_scaling;
+
+    if rng.random::<f64>() > scaled_prob {
         return vec![];
     }
 
@@ -365,7 +422,9 @@ fn generate_ice_giants(
 /// - Nielsen+ 2019 (GPIES): 0.8 ± 0.5% for 5-13 M_J at 10-100 AU
 /// - Vigan+ 2021 (SHINE): 1-3% for 1-20 M_J at 10-100 AU
 fn generate_wide_companion(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
-    if rng.random::<f64>() > WIDE_COMPANION_RATE {
+    // Wide companions also scale with stellar mass (disk instability needs massive disk)
+    let scaled_rate = WIDE_COMPANION_RATE * star.giant_occurrence_scaling();
+    if rng.random::<f64>() > scaled_rate {
         return vec![];
     }
 
@@ -380,8 +439,15 @@ fn generate_wide_companion(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
     // Mass distribution: 1-13 M_J, weighted toward lower masses
     // Direct imaging is biased toward detecting more massive planets
     // True distribution likely falls off steeply with mass
+    // Cap at stellar mass limit
     let min_mass: f64 = 318.0; // 1 M_J in Earth masses
-    let max_mass: f64 = 318.0 * 13.0; // 13 M_J (deuterium burning limit)
+    let max_mass: f64 = (318.0_f64 * 13.0).min(star.max_planet_mass()); // 13 M_J or stellar limit
+
+    // If stellar mass limit is below 1 M_J, skip wide companion
+    if max_mass < min_mass {
+        return vec![];
+    }
+
     let log_min = min_mass.ln();
     let log_max = max_mass.ln();
     // Power law favoring lower masses: dN/dM ∝ M^(-1.3)
@@ -448,12 +514,21 @@ fn sample_giant_mass(rng: &mut ChaChaRng) -> f64 {
     (log_jupiter + z).exp().clamp(50.0, 2000.0)
 }
 
+/// Sample giant mass scaled to stellar mass limits
+fn sample_giant_mass_for_star(rng: &mut ChaChaRng, star: &StellarContext) -> f64 {
+    let max_mass = star.max_planet_mass();
+    let base_mass = sample_giant_mass(rng);
+    base_mass.min(max_mass)
+}
+
 fn create_planet(
     rng: &mut ChaChaRng,
     star: &StellarContext,
     mass_earth: f64,
     sma_au: f64,
 ) -> Planet {
+    // Cap planet mass at ~1% of stellar mass to prevent unrealistic planets
+    let mass_earth = mass_earth.min(star.max_planet_mass());
     let class = PlanetClass::from_earth_masses(mass_earth);
     let period = (sma_au.powi(3) / star.mass).sqrt() * 365.25;
     let eccentricity = sample_eccentricity(rng, &class, period);
@@ -523,8 +598,8 @@ fn is_stable(planets: &[Planet], stellar_mass: f64) -> bool {
     }
 
     for window in planets.windows(2) {
-        let m1 = window[0].mass.to_earth_masses() / 332946.0;
-        let m2 = window[1].mass.to_earth_masses() / 332946.0;
+        let m1 = window[0].mass.to_earth_masses() / EARTH_MASSES_PER_SOLAR;
+        let m2 = window[1].mass.to_earth_masses() / EARTH_MASSES_PER_SOLAR;
         let a1 = window[0].semi_major_axis.to_au();
         let a2 = window[1].semi_major_axis.to_au();
 

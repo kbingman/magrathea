@@ -3,9 +3,13 @@
 use rand::Rng;
 use rand_chacha::ChaChaRng;
 use serde::{Deserialize, Serialize};
+use units::{EARTH_MASS_G, SOLAR_MASS_G};
 
 use crate::planet::Planet;
 use crate::planet_class::PlanetClass;
+
+/// Earth masses per solar mass (M☉/M⊕)
+const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 
 /// A complete planetary system
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -58,8 +62,8 @@ impl PlanetarySystem {
             let inner = &window[0];
             let outer = &window[1];
 
-            let m1 = inner.mass.to_earth_masses() / 332946.0;
-            let m2 = outer.mass.to_earth_masses() / 332946.0;
+            let m1 = inner.mass.to_earth_masses() / EARTH_MASSES_PER_SOLAR;
+            let m2 = outer.mass.to_earth_masses() / EARTH_MASSES_PER_SOLAR;
             let a1 = inner.semi_major_axis.to_au();
             let a2 = outer.semi_major_axis.to_au();
 
