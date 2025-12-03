@@ -57,12 +57,20 @@ impl Velocity {
         Self(value / AU_YEAR_TO_CM_SEC)
     }
 
+    pub fn from_meters_per_sec(value: f64) -> Self {
+        Self::from_cm_per_sec(value * 100.0)
+    }
+
     pub fn to_au_per_year(&self) -> f64 {
         self.0
     }
 
     pub fn to_cm_per_sec(&self) -> f64 {
         self.0 * AU_YEAR_TO_CM_SEC
+    }
+
+    pub fn to_meters_per_sec(&self) -> f64 {
+        self.to_cm_per_sec() / 100.0
     }
 }
 

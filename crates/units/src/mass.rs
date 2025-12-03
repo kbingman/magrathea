@@ -114,6 +114,10 @@ impl Mass {
         Self(value / SOLAR_MASS_G)
     }
 
+    pub fn from_kg(value: f64) -> Self {
+        Self::from_grams(value * 1000.0)
+    }
+
     /// Returns the mass value in solar masses.
     ///
     /// Since solar masses are the base unit, this simply returns the stored value.
@@ -190,6 +194,10 @@ impl Mass {
     /// ```
     pub fn to_grams(&self) -> f64 {
         self.0 * SOLAR_MASS_G
+    }
+
+    pub fn to_kg(&self) -> f64 {
+        self.to_grams() / 1000.0
     }
 
     /// Raise to integer power

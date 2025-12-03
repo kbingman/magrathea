@@ -13,3 +13,6 @@ install-ts:
 
 build-wasm:
   wasm-pack build crates/magrathea-wasm --target web --scope magrathea
+
+test-rust:
+  cargo test --quiet
