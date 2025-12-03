@@ -4,17 +4,18 @@
 
 pub mod disk;
 pub mod particles;
-pub mod stellar;
+
+// Re-export stellar crate
+pub use stellar;
 
 // Re-export types for convenience
-pub use stellar::spectral::{LuminosityClass, SpectralType, VariabilityType};
-pub use stellar::stellar_color::StellarColor;
-pub use stellar::stellar_objects::{
-    BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
+pub use stellar::{
+    BlackHole, GiantStar, LuminosityClass, MainSequenceStar, NeutronStar, SpectralType,
+    StellarColor, StellarObject, VariabilityType, WhiteDwarf, WhiteDwarfType,
 };
 
 // Re-export generation functions
-pub use stellar::generation::{
+pub use stellar::{
     black_hole, giant_star, main_sequence_star, neutron_star, sample_main_sequence_star,
     sample_stellar_object, solar_analog, stellar_object, white_dwarf,
 };

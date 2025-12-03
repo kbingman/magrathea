@@ -1,9 +1,7 @@
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 
-use crate::stellar::sampling::{
-    sample_gaussian, sample_mass_kroupa, sample_metallicity, sample_power_law,
-};
+use crate::sampling::{sample_gaussian, sample_mass_kroupa, sample_metallicity, sample_power_law};
 
 #[test]
 fn sample_gaussian_produces_reasonable_values() {

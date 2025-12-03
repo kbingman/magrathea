@@ -1,8 +1,8 @@
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 
-use crate::stellar::generation::{black_hole, neutron_star, solar_analog};
-use crate::stellar::stellar_color::StellarColor;
+use crate::generation::{black_hole, neutron_star, solar_analog};
+use crate::stellar_color::StellarColor;
 
 #[test]
 fn stellar_color_from_temperature() {

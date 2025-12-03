@@ -1,4 +1,4 @@
-use crate::stellar::spectral::{LuminosityClass, SpectralType, VariabilityType};
+use crate::spectral::{LuminosityClass, SpectralType, VariabilityType};
 
 // ============================================================================
 // SpectralType Display tests

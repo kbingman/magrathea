@@ -55,7 +55,7 @@ const TEMP_BOUNDS: [(SpectralType, f64); 10] = [
 ///
 /// # Example
 /// ```
-/// use stellar_forge::stellar::generation::main_sequence_star;
+/// use stellar::main_sequence_star;
 ///
 /// let sun_like = main_sequence_star(1.0, 0.0, 4600.0);
 /// ```
@@ -99,7 +99,7 @@ pub fn solar_analog() -> MainSequenceStar {
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::stellar::generation::sample_main_sequence_star;
+/// use stellar::sample_main_sequence_star;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let star = sample_main_sequence_star(&mut rng);
@@ -178,7 +178,7 @@ fn sample_young_star_age(rng: &mut ChaChaRng) -> f64 {
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::stellar::generation::giant_star;
+/// use stellar::giant_star;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let supergiant = giant_star(&mut rng, 15.0);
@@ -269,7 +269,7 @@ pub fn giant_star(rng: &mut ChaChaRng, initial_mass: f64) -> GiantStar {
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::stellar::generation::white_dwarf;
+/// use stellar::white_dwarf;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let wd = white_dwarf(&mut rng);
@@ -317,7 +317,7 @@ fn determine_wd_spectral_class(luminosity: f64) -> WhiteDwarfType {
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::stellar::generation::neutron_star;
+/// use stellar::neutron_star;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let ns = neutron_star(&mut rng);
@@ -390,7 +390,7 @@ fn calculate_ns_radius_km(mass_solar: f64) -> f64 {
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::stellar::generation::black_hole;
+/// use stellar::black_hole;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let bh = black_hole(&mut rng, 25.0, 0.02);
@@ -450,7 +450,7 @@ fn calculate_bh_spin(rng: &mut ChaChaRng, initial_mass: f64) -> f64 {
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::stellar::generation::stellar_object;
+/// use stellar::stellar_object;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let star = stellar_object(&mut rng, 1.0, 1.0e9, 0.0);
@@ -480,7 +480,7 @@ pub fn stellar_object(
 /// ```
 /// use rand::SeedableRng;
 /// use rand_chacha::ChaChaRng;
-/// use stellar_forge::stellar::generation::sample_stellar_object;
+/// use stellar::sample_stellar_object;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let star = sample_stellar_object(&mut rng);

@@ -10,7 +10,7 @@ use units::Length;
 ///
 /// # Example
 /// ```
-/// use stellar_forge::stellar::stellar_radius::StellarRadius;
+/// use stellar::StellarRadius;
 /// use units::Length;
 ///
 /// let radius = StellarRadius::new(Length::from_solar_radii(1.0));

@@ -25,6 +25,9 @@ pub use stellar_radius::StellarRadius;
 // Re-export spectral types
 pub use spectral::{LuminosityClass, SpectralType, VariabilityType};
 
+// Re-export color
+pub use stellar_color::StellarColor;
+
 // Re-export generation functions
 pub use generation::{
     black_hole, giant_star, main_sequence_star, neutron_star, sample_main_sequence_star,

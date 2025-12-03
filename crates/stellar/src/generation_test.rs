@@ -2,17 +2,17 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use units::{Mass, Temperature, Time};
 
-use crate::stellar::generation::{
+use crate::generation::{
     black_hole, calculate_radius, calculate_subtype, estimate_lifetime, giant_star,
     main_sequence_star, neutron_star, sample_main_sequence_star, sample_stellar_object,
     solar_analog, spectral_type_from_temp, stellar_object, white_dwarf,
 };
-use crate::stellar::spectral::{LuminosityClass, SpectralType, VariabilityType};
-use crate::stellar::stellar_color::StellarColor;
-use crate::stellar::stellar_objects::{
+use crate::spectral::{LuminosityClass, SpectralType, VariabilityType};
+use crate::stellar_color::StellarColor;
+use crate::stellar_objects::{
     BlackHole, GiantStar, MainSequenceStar, NeutronStar, StellarObject, WhiteDwarf, WhiteDwarfType,
 };
-use crate::stellar::stellar_radius::StellarRadius;
+use crate::stellar_radius::StellarRadius;
 
 #[test]
 fn white_dwarf_test() {
