@@ -5,6 +5,7 @@
 //! - Stopping times and Stokes numbers
 //! - Radial drift and vertical settling
 //! - Size distributions for particle populations
+//! - Coagulation (sticking) for dust growth
 //!
 //! # Physics
 //!
@@ -25,11 +26,21 @@
 //! Particle populations are represented statistically via size distributions.
 //! The MRN distribution (q = 3.5) is typical for ISM dust. Coagulation
 //! evolves the distribution toward larger sizes.
+//!
+//! # Coagulation
+//!
+//! Dust growth proceeds through collisions. At low velocities, particles
+//! stick to form larger aggregates. The collision rate depends on
+//! geometric cross-sections and relative velocities (differential drift,
+//! turbulence). The Smoluchowski equation governs the evolution.
 
+mod coagulation;
 mod particle;
 mod particle_bin;
 mod size_distribution;
 
+#[cfg(test)]
+mod coagulation_test;
 #[cfg(test)]
 mod particle_bin_test;
 #[cfg(test)]
@@ -37,6 +48,7 @@ mod particle_test;
 #[cfg(test)]
 mod size_distribution_test;
 
+pub use coagulation::Coagulation;
 pub use particle::{DragRegime, Particle};
 pub use particle_bin::ParticleBin;
 pub use size_distribution::SizeDistribution;
