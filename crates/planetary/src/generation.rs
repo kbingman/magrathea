@@ -557,27 +557,47 @@ fn sample_composition(
 
     match class {
         PlanetClass::Rocky => {
+            // Rare iron-rich (mantle-stripped) worlds: ~5% chance
+            if rng.random::<f64>() < 0.05 {
+                return Composition::new(
+                    0.60 + rng.random::<f64>() * 0.15, // 0.60-0.75 iron
+                    0.25 + rng.random::<f64>() * 0.10,
+                    0.0,
+                    0.0,
+                );
+            }
+
             if beyond_snow_line {
                 Composition::new(
                     0.15 + rng.random::<f64>() * 0.10,
                     0.35 + rng.random::<f64>() * 0.10,
-                    0.40 + rng.random::<f64>() * 0.20,
+                    0.40 + rng.random::<f64>() * 0.20, // 0.40-0.60 water
                     0.0,
                 )
             } else {
+                // Inside snow line: MOST are dry, but some have migrated water
+                // ~15% chance of significant water delivery
+                let water = if rng.random::<f64>() < 0.15 {
+                    0.20 + rng.random::<f64>() * 0.30 // 0.20-0.50 (migrant)
+                } else {
+                    rng.random::<f64>() * 0.05 // 0.00-0.05 (dry)
+                };
                 Composition::new(
                     0.25 + rng.random::<f64>() * 0.15,
                     0.60 + rng.random::<f64>() * 0.15,
-                    rng.random::<f64>() * 0.05,
+                    water,
                     0.0,
                 )
             }
         }
         PlanetClass::Transitional => {
+            // Similar logic: some inner transitional planets have migrated water
             let water = if beyond_snow_line {
-                0.20 + rng.random::<f64>() * 0.30
+                0.20 + rng.random::<f64>() * 0.35 // 0.20-0.55
+            } else if rng.random::<f64>() < 0.20 {
+                0.25 + rng.random::<f64>() * 0.25 // 0.25-0.50 (migrant, ~20%)
             } else {
-                rng.random::<f64>() * 0.10
+                rng.random::<f64>() * 0.10 // 0.00-0.10 (dry)
             };
             let envelope = rng.random::<f64>() * 0.15;
             Composition::new(
@@ -587,8 +607,8 @@ fn sample_composition(
                 envelope,
             )
         }
-        PlanetClass::Volatile => Composition::ice_giant(),
-        PlanetClass::Giant => Composition::gas_giant(),
+        PlanetClass::Volatile => Composition::sample_ice_giant(rng),
+        PlanetClass::Giant => Composition::sample_gas_giant(rng),
     }
 }
 
