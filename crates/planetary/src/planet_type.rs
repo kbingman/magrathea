@@ -172,7 +172,7 @@ impl PlanetType {
             PlanetClass::Transitional => {
                 Self::determine_transitional(composition, equilibrium_temp, incident_flux)
             }
-            PlanetClass::Volatile => Self::determine_volatile(equilibrium_temp),
+            PlanetClass::Volatile => Self::determine_volatile(equilibrium_temp, mass_earth),
             PlanetClass::Giant => Self::determine_giant(equilibrium_temp, mass_earth),
         }
     }
@@ -247,7 +247,16 @@ impl PlanetType {
         }
     }
 
-    fn determine_volatile(t_eq: f64) -> Self {
+    fn determine_volatile(t_eq: f64, mass_earth: f64) -> Self {
+        // Saturn-class (50-160 M⊕) with moderate irradiation → Puffy Saturn
+        // These are inflated sub-Jovians with anomalously low density
+        let is_saturn_mass = mass_earth > 50.0;
+        let is_warm_enough_for_inflation = t_eq > 300.0 && t_eq < 1000.0;
+
+        if is_saturn_mass && is_warm_enough_for_inflation {
+            return Self::PuffySaturn;
+        }
+
         match t_eq {
             t if t > 400.0 => Self::SubNeptune,
             t if t > 150.0 => Self::WarmNeptune,
