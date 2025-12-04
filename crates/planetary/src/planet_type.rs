@@ -30,6 +30,27 @@ pub mod flux {
     pub const EVAPORATION_THRESHOLD: f64 = 100.0;
 }
 
+/// Estimate whether a planet is tidally locked based on orbital period and stellar mass
+///
+/// Tidal locking timescale scales as τ ∝ a^6/M_star. For planets in the habitable zone,
+/// the threshold period varies by stellar type because the HZ location scales with
+/// luminosity while locking timescale scales differently.
+///
+/// Thresholds are calibrated so that:
+/// - M-dwarf HZ planets (P ~ 10-40 days) are typically locked
+/// - K-dwarf HZ planets (P ~ 50-100 days) are sometimes locked
+/// - G/F-dwarf HZ planets (P ~ 200-400 days) are rarely locked
+fn is_tidally_locked(orbital_period_days: f64, stellar_mass_solar: f64) -> bool {
+    let threshold_days = match stellar_mass_solar {
+        m if m < 0.20 => 20.0, // Late M: very close HZ
+        m if m < 0.35 => 30.0, // Mid M
+        m if m < 0.50 => 40.0, // Early M
+        m if m < 0.70 => 15.0, // K-dwarf: HZ further out, harder to lock
+        _ => 5.0,              // G/F: almost never locked in HZ
+    };
+    orbital_period_days < threshold_days
+}
+
 /// Observable planet type - the expression of a physical regime
 ///
 /// Each variant represents a distinct observable category determined by
@@ -225,21 +246,10 @@ impl PlanetType {
             t if t > temperature::HZ_INNER => Self::Desert,
             t if t >= temperature::HZ_OUTER => {
                 // Habitable zone - check for tidal locking (Eyeball worlds)
-                // Tidal locking timescale τ ∝ a^6/M_star, so close-in planets around
-                // low-mass stars lock quickly.
-                //
-                // Approximate tidal locking timescale (Barnes 2017):
-                // τ_lock ∝ a^6 / M_star^2
-                //
-                // For Earth-like planets:
-                // - 0.1 M☉ star, a = 0.05 AU: τ ~ 0.1 Gyr (locked)
-                // - 0.5 M☉ star, a = 0.3 AU: τ ~ 1 Gyr (likely locked)
-                // - 1.0 M☉ star, a = 1.0 AU: τ ~ 100 Gyr (not locked)
-                //
-                // Use τ < 4 Gyr as threshold for "likely tidally locked"
-                let tidal_locking_timescale =
-                    semi_major_axis_au.powi(6) / stellar_mass.powi(2) * 100.0; // ~Gyr
-                let likely_tidally_locked = tidal_locking_timescale < 4.0;
+                // Calculate orbital period: P = sqrt(a³/M_star) in years, convert to days
+                let orbital_period_days =
+                    (semi_major_axis_au.powi(3) / stellar_mass).sqrt() * 365.25;
+                let likely_tidally_locked = is_tidally_locked(orbital_period_days, stellar_mass);
 
                 if likely_tidally_locked && composition.water > 0.001 {
                     // Eyeball world: tidally locked with potential terminator habitability
