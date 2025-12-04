@@ -48,11 +48,12 @@ impl Planet {
         inclination: f64,
         composition: Composition,
         stellar_luminosity: f64,
+        stellar_mass: f64,
     ) -> Self {
         let class = PlanetClass::from_earth_masses(mass.to_earth_masses());
-        let equilibrium_temp =
-            calculate_equilibrium_temp(semi_major_axis.to_au(), stellar_luminosity);
-        let incident_flux = stellar_luminosity / semi_major_axis.to_au().powi(2);
+        let sma_au = semi_major_axis.to_au();
+        let equilibrium_temp = calculate_equilibrium_temp(sma_au, stellar_luminosity);
+        let incident_flux = stellar_luminosity / sma_au.powi(2);
 
         let planet_type = PlanetType::from_environment(
             class,
@@ -60,6 +61,8 @@ impl Planet {
             equilibrium_temp,
             incident_flux,
             mass.to_earth_masses(),
+            stellar_mass,
+            sma_au,
         );
 
         Self {
@@ -85,6 +88,7 @@ impl Planet {
         inclination: f64,
         composition: Composition,
         stellar_luminosity: f64,
+        stellar_mass: f64,
         rng: &mut impl Rng,
     ) -> Self {
         let mass_earth = mass.to_earth_masses();
@@ -107,6 +111,7 @@ impl Planet {
             inclination,
             composition,
             stellar_luminosity,
+            stellar_mass,
         )
     }
 
@@ -212,7 +217,8 @@ pub fn earth_analog() -> Planet {
         0.017,
         0.0,
         Composition::earth_like(),
-        1.0,
+        1.0, // stellar luminosity
+        1.0, // stellar mass
     )
 }
 
@@ -225,7 +231,8 @@ pub fn jupiter_analog() -> Planet {
         0.049,
         0.022,
         Composition::gas_giant(),
-        1.0,
+        1.0, // stellar luminosity
+        1.0, // stellar mass
     )
 }
 
@@ -238,6 +245,7 @@ pub fn neptune_analog() -> Planet {
         0.009,
         0.031,
         Composition::ice_giant(),
-        1.0,
+        1.0, // stellar luminosity
+        1.0, // stellar mass
     )
 }

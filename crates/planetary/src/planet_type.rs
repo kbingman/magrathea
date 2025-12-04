@@ -160,15 +160,33 @@ impl PlanetType {
     ///
     /// This is the core mapping function that takes a physical classification
     /// and observable conditions to determine the planet's expression.
+    ///
+    /// # Arguments
+    /// * `class` - Physical mass regime
+    /// * `composition` - Bulk composition fractions
+    /// * `equilibrium_temp` - Equilibrium temperature in Kelvin
+    /// * `incident_flux` - Stellar flux in Earth flux units (F⊕)
+    /// * `mass_earth` - Planet mass in Earth masses
+    /// * `stellar_mass` - Stellar mass in solar masses (for tidal locking estimate)
+    /// * `semi_major_axis_au` - Orbital distance in AU (for tidal locking estimate)
     pub fn from_environment(
         class: PlanetClass,
         composition: &Composition,
         equilibrium_temp: f64,
         incident_flux: f64,
         mass_earth: f64,
+        stellar_mass: f64,
+        semi_major_axis_au: f64,
     ) -> Self {
         match class {
-            PlanetClass::Rocky => Self::determine_rocky(composition, equilibrium_temp, mass_earth),
+            PlanetClass::Rocky => Self::determine_rocky(
+                composition,
+                equilibrium_temp,
+                mass_earth,
+                incident_flux,
+                stellar_mass,
+                semi_major_axis_au,
+            ),
             PlanetClass::Transitional => {
                 Self::determine_transitional(composition, equilibrium_temp, incident_flux)
             }
@@ -177,7 +195,14 @@ impl PlanetType {
         }
     }
 
-    fn determine_rocky(composition: &Composition, t_eq: f64, mass_earth: f64) -> Self {
+    fn determine_rocky(
+        composition: &Composition,
+        t_eq: f64,
+        mass_earth: f64,
+        _incident_flux: f64,
+        stellar_mass: f64,
+        semi_major_axis_au: f64,
+    ) -> Self {
         // Check mass first - very small bodies
         if mass_earth < 0.5 {
             return Self::SubEarth;
@@ -199,8 +224,29 @@ impl PlanetType {
             },
             t if t > temperature::HZ_INNER => Self::Desert,
             t if t >= temperature::HZ_OUTER => {
-                // Habitable zone - depends on water content
-                if composition.water > 0.3 {
+                // Habitable zone - check for tidal locking (Eyeball worlds)
+                // Tidal locking timescale τ ∝ a^6/M_star, so close-in planets around
+                // low-mass stars lock quickly.
+                //
+                // Approximate tidal locking timescale (Barnes 2017):
+                // τ_lock ∝ a^6 / M_star^2
+                //
+                // For Earth-like planets:
+                // - 0.1 M☉ star, a = 0.05 AU: τ ~ 0.1 Gyr (locked)
+                // - 0.5 M☉ star, a = 0.3 AU: τ ~ 1 Gyr (likely locked)
+                // - 1.0 M☉ star, a = 1.0 AU: τ ~ 100 Gyr (not locked)
+                //
+                // Use τ < 4 Gyr as threshold for "likely tidally locked"
+                let tidal_locking_timescale =
+                    semi_major_axis_au.powi(6) / stellar_mass.powi(2) * 100.0; // ~Gyr
+                let likely_tidally_locked = tidal_locking_timescale < 4.0;
+
+                if likely_tidally_locked && composition.water > 0.001 {
+                    // Eyeball world: tidally locked with potential terminator habitability
+                    Self::Eyeball {
+                        terminator_habitable: composition.water > 0.01,
+                    }
+                } else if composition.water > 0.3 {
                     Self::Oceanic {
                         ocean_fraction: 0.95,
                     }

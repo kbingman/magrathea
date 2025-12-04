@@ -542,6 +542,7 @@ fn create_planet(
         inclination,
         composition,
         star.luminosity,
+        star.mass,
         rng,
     )
 }
