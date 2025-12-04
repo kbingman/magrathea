@@ -351,6 +351,10 @@ fn generate_outer_system(
     let wide = generate_wide_companion(rng, star);
     planets.extend(wide);
 
+    // Trans-Neptunian objects (30-100 AU) - small icy dwarf planets
+    let tnos = generate_tnos(rng, star);
+    planets.extend(tnos);
+
     planets
 }
 
@@ -455,6 +459,96 @@ fn generate_wide_companion(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
     let mass = (log_min + u.powf(1.3) * (log_max - log_min)).exp();
 
     vec![create_planet(rng, star, mass, sma)]
+}
+
+/// Generate trans-Neptunian objects (TNOs) / dwarf planets in the Kuiper Belt
+///
+/// TNOs are small icy bodies in the outer solar system beyond Neptune.
+/// The Kuiper Belt contains thousands of objects, with hundreds likely
+/// qualifying as dwarf planets (> ~400 km diameter).
+///
+/// Known examples:
+/// - Pluto: 0.0022 M⊕, 39.5 AU (3:2 resonance with Neptune)
+/// - Eris: 0.0028 M⊕, 68 AU (scattered disk)
+/// - Makemake: 0.0007 M⊕, 45 AU (classical KBO)
+/// - Haumea: 0.0007 M⊕, 43 AU (classical KBO)
+///
+/// Zone: 30-100 AU (Kuiper Belt and scattered disk)
+/// Mass range: 0.0001-0.01 M⊕ (large TNOs to Pluto-class)
+///
+/// Occurrence: Very high - most systems likely have TNO populations
+/// We generate 0-3 "major" TNOs per system (detectable dwarf planets)
+///
+/// # References
+/// - Brown (2008) - "The Largest Kuiper Belt Objects"
+/// - Petit+ (2011) - CFEPS survey of Kuiper Belt
+fn generate_tnos(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
+    // TNOs require a stable outer system - giant planets help sculpt the belt
+    // but aren't strictly required. Most systems should have some TNOs.
+    // Base probability ~70%, reduced for very low-mass stars (smaller disks)
+    let base_prob = 0.70 * star.mass.sqrt();
+
+    if rng.random::<f64>() > base_prob {
+        return vec![];
+    }
+
+    let sl = star.snow_line();
+
+    // Kuiper Belt zone: ~10-40× snow line
+    // For Sun: 30-100 AU
+    let inner_kb = sl * 10.0;
+    let outer_kb = sl * 40.0;
+
+    // Number of major TNOs: 0-3, weighted toward 1-2
+    let n_tnos = match rng.random::<f64>() {
+        x if x < 0.30 => 1,
+        x if x < 0.70 => 2,
+        _ => 3,
+    };
+
+    let mut tnos = Vec::with_capacity(n_tnos);
+
+    for _ in 0..n_tnos {
+        // Log-uniform semi-major axis distribution
+        let log_inner = inner_kb.ln();
+        let log_outer = outer_kb.ln();
+        let sma = (log_inner + rng.random::<f64>() * (log_outer - log_inner)).exp();
+
+        // Mass distribution: 0.0001-0.01 M⊕, power law favoring smaller objects
+        // dN/dM ∝ M^(-2) approximately (steep size distribution)
+        let min_mass: f64 = 0.0001; // ~400 km diameter
+        let max_mass: f64 = 0.01; // ~Pluto-class
+        let log_min = min_mass.ln();
+        let log_max = max_mass.ln();
+        let u: f64 = rng.random();
+        let mass = (log_min + u.powf(2.0) * (log_max - log_min)).exp();
+
+        // TNOs have high eccentricities and inclinations from Neptune interactions
+        let eccentricity = rng.random_range(0.05..0.30);
+        let inclination = rng.random_range(0.0..0.5); // Up to ~30 degrees
+
+        // Icy composition for TNOs
+        let composition = Composition::new(
+            0.05 + rng.random::<f64>() * 0.10, // 5-15% iron (small core)
+            0.25 + rng.random::<f64>() * 0.15, // 25-40% rock
+            0.50 + rng.random::<f64>() * 0.20, // 50-70% water ice
+            0.0,                               // No H/He envelope
+        );
+
+        let planet = Planet::from_mass(
+            Mass::from_earth_masses(mass),
+            Length::from_au(sma),
+            eccentricity,
+            inclination,
+            composition,
+            star.luminosity,
+            star.mass,
+            rng,
+        );
+        tnos.push(planet);
+    }
+
+    tnos
 }
 
 fn generate_n_spaced_planets(

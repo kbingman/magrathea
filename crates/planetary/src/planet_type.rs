@@ -224,7 +224,16 @@ impl PlanetType {
         stellar_mass: f64,
         semi_major_axis_au: f64,
     ) -> Self {
-        // Check mass first - very small bodies
+        // Check for frozen worlds first - TNOs and other icy bodies
+        // This takes precedence over mass check since frozen dwarf planets
+        // (Pluto, Eris, etc.) are distinct from warm sub-Earths
+        if t_eq < temperature::FROZEN {
+            return Self::Frozen {
+                has_subsurface_ocean: composition.water > 0.05,
+            };
+        }
+
+        // Check mass - very small warm bodies
         if mass_earth < 0.5 {
             return Self::SubEarth;
         }
