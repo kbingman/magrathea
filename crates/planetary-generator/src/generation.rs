@@ -12,7 +12,7 @@ use rand::Rng;
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use stellar::{MainSequenceStar, StellarObject};
-use units::{EARTH_MASS_G, Length, Mass, SOLAR_MASS_G};
+use units::{Length, Mass};
 use uuid::Uuid;
 
 use planetary::composition::Composition;
@@ -26,9 +26,6 @@ use crate::sampling::{
     period_to_semi_major_axis, sample_eccentricity, sample_inclination, sample_orbital_period,
     sample_planet_mass,
 };
-
-/// Earth masses per solar mass (M☉/M⊕)
-const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 
 // =============================================================================
 // Outer System Occurrence Rates (from RV, microlensing, direct imaging)
@@ -87,7 +84,7 @@ impl StellarContext {
     /// Caps planet mass at ~1% of stellar mass to prevent unrealistic
     /// massive planets around low-mass stars.
     fn max_planet_mass(&self) -> f64 {
-        self.mass * EARTH_MASSES_PER_SOLAR * MAX_PLANET_STAR_MASS_RATIO
+        Mass::from_solar_masses(self.mass).to_earth_masses() * MAX_PLANET_STAR_MASS_RATIO
     }
 
     /// Giant planet occurrence scaling factor based on stellar mass
@@ -760,21 +757,14 @@ fn sample_composition(
 }
 
 fn is_stable(planets: &[Planet], stellar_mass: f64) -> bool {
-    if planets.len() < 2 {
-        return true;
-    }
-
-    for window in planets.windows(2) {
-        let m1 = window[0].mass.to_earth_masses() / EARTH_MASSES_PER_SOLAR;
-        let m2 = window[1].mass.to_earth_masses() / EARTH_MASSES_PER_SOLAR;
-        let a1 = window[0].semi_major_axis.to_au();
-        let a2 = window[1].semi_major_axis.to_au();
+    planets.windows(2).all(|pair| {
+        let m1 = pair[0].mass.to_solar_masses();
+        let m2 = pair[1].mass.to_solar_masses();
+        let a1 = pair[0].semi_major_axis.to_au();
+        let a2 = pair[1].semi_major_axis.to_au();
 
         let mutual_hill = ((m1 + m2) / (3.0 * stellar_mass)).powf(1.0 / 3.0) * ((a1 + a2) / 2.0);
-        if (a2 - a1) / mutual_hill < 8.0 {
-            return false;
-        }
-    }
 
-    true
+        (a2 - a1) / mutual_hill >= 8.0
+    })
 }
