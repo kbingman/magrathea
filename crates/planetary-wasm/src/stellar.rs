@@ -6,18 +6,17 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use wasm_bindgen::prelude::*;
 
+use stellar::MainSequenceStar;
 use stellar_forge::{
     sample_main_sequence_star as forge_sample_main_sequence, solar_analog as forge_solar_analog,
 };
-
-use crate::to_js;
 
 /// Generate a solar analog star.
 ///
 /// Returns a MainSequenceStar with properties matching our Sun.
 #[wasm_bindgen]
-pub fn solar_analog() -> Result<JsValue, JsError> {
-    to_js(&forge_solar_analog())
+pub fn solar_analog() -> MainSequenceStar {
+    forge_solar_analog()
 }
 
 /// Sample a random main sequence star from the IMF distribution.
@@ -28,9 +27,10 @@ pub fn solar_analog() -> Result<JsValue, JsError> {
 /// # Arguments
 /// * `seed` - Random seed for reproducible generation
 #[wasm_bindgen]
-pub fn sample_main_sequence_star(seed: u64) -> Result<JsValue, JsError> {
+pub fn sample_main_sequence_star(seed: u64) -> MainSequenceStar {
     let mut rng = ChaChaRng::seed_from_u64(seed);
-    to_js(&forge_sample_main_sequence(&mut rng))
+
+    forge_sample_main_sequence(&mut rng)
 }
 
 /// Generate a main sequence star with specified mass.
@@ -40,7 +40,7 @@ pub fn sample_main_sequence_star(seed: u64) -> Result<JsValue, JsError> {
 /// # Arguments
 /// * `mass_solar` - Stellar mass in solar masses (0.08 to ~100)
 #[wasm_bindgen]
-pub fn main_sequence_star_with_mass(mass_solar: f64) -> Result<JsValue, JsError> {
+pub fn main_sequence_star_with_mass(mass_solar: f64) -> MainSequenceStar {
     // Use a reasonable default age (middle-aged for the mass)
     // More massive stars have shorter lifetimes, so scale accordingly
     let age_myr = if mass_solar > 2.0 {
@@ -51,5 +51,5 @@ pub fn main_sequence_star_with_mass(mass_solar: f64) -> Result<JsValue, JsError>
         8000.0 // Older for low-mass stars (they live longer)
     };
 
-    to_js(&stellar_forge::main_sequence_star(mass_solar, 0.0, age_myr))
+    stellar_forge::main_sequence_star(mass_solar, 0.0, age_myr)
 }

@@ -28,6 +28,7 @@ const MYR_TO_YEARS: f64 = 1_000_000.0;
 /// let myr = evolution.to_myr();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Time(f64); // Base unit: Years
 
 impl Time {

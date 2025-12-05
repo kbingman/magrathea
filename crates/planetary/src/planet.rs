@@ -8,6 +8,9 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use units::{Length, Mass};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 use crate::composition::Composition;
 use crate::planet_class::PlanetClass;
 use crate::planet_type::PlanetType;
@@ -42,6 +45,8 @@ impl HostStar {
 /// A fully characterized planet
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Planet {
     /// Planet mass
     pub mass: Mass,

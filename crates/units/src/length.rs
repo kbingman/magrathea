@@ -36,6 +36,7 @@ pub const AU_TO_SOLAR_RADIUS: f64 = 1.0 / SOLAR_RADIUS_AU;
 /// let orbit_in_km = earth_orbit.to_km();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct Length(f64); // Base unit: AU
 
 impl Length {

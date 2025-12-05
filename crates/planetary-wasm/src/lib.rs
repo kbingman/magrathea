@@ -27,12 +27,19 @@ use wasm_bindgen::prelude::*;
 mod stellar;
 mod system;
 
-/// Convert a Rust type to JsValue via serde.
-fn to_js<T: serde::Serialize>(value: &T) -> Result<JsValue, JsError> {
-    serde_wasm_bindgen::to_value(value).map_err(|e| JsError::new(&e.to_string()))
-}
-
-/// Convert a JsValue to a Rust type via serde.
-fn from_js<T: serde::de::DeserializeOwned>(value: JsValue) -> Result<T, JsError> {
-    serde_wasm_bindgen::from_value(value).map_err(|e| JsError::new(&e.to_string()))
-}
+// Type aliases for unit types (serialized as numbers via serde(transparent))
+#[wasm_bindgen(typescript_custom_section)]
+const TS_UNIT_TYPES: &'static str = r#"
+/** Mass in solar masses (M☉) */
+export type Mass = number;
+/** Length in AU (astronomical units) */
+export type Length = number;
+/** Temperature in Kelvin */
+export type Temperature = number;
+/** Time in Myr (million years) */
+export type Time = number;
+/** Stellar radius in solar radii (R☉) */
+export type StellarRadius = number;
+/** UUID string */
+export type Uuid = string;
+"#;

@@ -8,21 +8,20 @@ description = "WASM bindings for statistical planetary system generation"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-planetary = { path = "../planetary" }
+planetary = { path = "../planetary", features = ["tsify"] }
 planetary-generator = { path = "../planetary-generator" }
-star-system = { path = "../star-system" }
-stellar = { path = "../stellar" }
+star-system = { path = "../star-system", features = ["tsify"] }
+stellar = { path = "../stellar", features = ["tsify"] }
 stellar_forge = { path = "../stellar-forge" }
 units = { path = "../units" }
 
 wasm-bindgen = "0.2"
 serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.6"
-js-sys = "0.3"
 rand = "0.9"
 rand_chacha = "0.9"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 uuid = { version = "1.11", features = ["v4", "v5", "serde", "js"] }
+tsify-next = "0.5"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

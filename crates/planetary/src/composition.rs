@@ -5,12 +5,17 @@
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 /// Bulk composition as mass fractions
 ///
 /// Fractions should sum to approximately 1.0.
 /// Uses `h_he_gas` naming to match existing codebase.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Composition {
     /// Iron/nickel core fraction (Earth ~0.32)
     pub iron: f64,

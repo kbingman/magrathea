@@ -31,6 +31,7 @@ const JUPITER_MASS_G: f64 = 1.898e30;
 /// let sun_in_grams = sun_mass.to_grams();
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct Mass(f64); // Base unit: Solar Masses
 
 impl Mass {

@@ -6,6 +6,9 @@
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 use crate::composition::Composition;
 use crate::planet_class::PlanetClass;
 
@@ -58,6 +61,8 @@ fn is_tidally_locked(orbital_period_days: f64, stellar_mass_solar: f64) -> bool 
 /// composition, and stellar environment.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum PlanetType {
     // =========================================================================
     // Rocky expressions (PlanetClass::Rocky, M < 2 M⊕)

@@ -26,6 +26,7 @@ use std::ops::{Add, Div, Mul, Sub};
 /// let boiling = Temperature::water_boiling();    // 373.15 K
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct Temperature(f64); // Base unit: Kelvin
 
 impl Temperature {

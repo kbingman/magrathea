@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 use units::time::Time;
 use units::{Mass, Temperature};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 use super::spectral::{LuminosityClass, SpectralType, VariabilityType};
 use super::stellar_color::StellarColor;
 use super::stellar_radius::StellarRadius;
@@ -23,6 +26,8 @@ use super::stellar_radius::StellarRadius;
 /// * temperature: 2400K (M-type) to 50,000K (O-type)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct MainSequenceStar {
     pub mass: Mass,
     pub radius: StellarRadius,
@@ -51,6 +56,8 @@ pub struct MainSequenceStar {
 /// * radius: 10-1000+ times main sequence radius
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct GiantStar {
     pub mass: Mass,
     pub radius: StellarRadius,
@@ -77,6 +84,8 @@ pub struct GiantStar {
 /// * temperature: 4,000K to 150,000K (cooling over time)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct WhiteDwarf {
     pub mass: Mass,
     pub radius: StellarRadius,
@@ -90,6 +99,8 @@ pub struct WhiteDwarf {
 
 /// White dwarf spectral classification
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum WhiteDwarfType {
     /// Hydrogen-rich atmosphere (most common)
     DA,
@@ -114,6 +125,8 @@ pub enum WhiteDwarfType {
 /// * magnetic_field: 10^8 to 10^15 Gauss
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct NeutronStar {
     pub mass: Mass,
     pub radius: StellarRadius,
@@ -136,6 +149,8 @@ pub struct NeutronStar {
 /// * spin: 0 (Schwarzschild) to 1 (maximally rotating Kerr)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct BlackHole {
     pub mass: Mass,
     /// Dimensionless spin parameter (0 to 1)
@@ -152,6 +167,8 @@ pub struct BlackHole {
 /// collections (e.g., a stellar system with mixed object types).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum StellarObject {
     MainSequence(MainSequenceStar),
     Giant(GiantStar),

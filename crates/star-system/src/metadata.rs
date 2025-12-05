@@ -3,10 +3,15 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 use crate::architecture::SystemArchitecture;
 
 /// How the planetary system was generated
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum GenerationMethod {
     /// Fast occurrence-rate sampling (statistical generator)
     Statistical,
@@ -30,6 +35,8 @@ pub enum GenerationMethod {
 /// - An optional proper name for notable "hero" systems
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct SystemMetadata {
     /// Unique identifier for this system (also used as RNG seed source)
     ///

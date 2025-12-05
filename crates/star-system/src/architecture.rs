@@ -4,8 +4,13 @@ use rand::Rng;
 use rand_chacha::ChaChaRng;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 /// System architecture classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum SystemArchitecture {
     CompactMulti,
     Mixed,

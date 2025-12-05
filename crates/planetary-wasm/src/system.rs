@@ -8,14 +8,13 @@ use rand_chacha::ChaChaRng;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
+use planetary::Planet;
 use planetary_generator::{
     from_star, from_star_with_id, generate_planetary_system, generate_planetary_system_named,
 };
 use star_system::PlanetarySystem;
 use stellar::StellarObject;
-use stellar_forge::{sample_main_sequence_star, solar_analog};
-
-use crate::{from_js, to_js};
+use stellar_forge::{MainSequenceStar, sample_main_sequence_star, solar_analog};
 
 // =============================================================================
 // System Generation - Convenience Functions
@@ -29,10 +28,10 @@ use crate::{from_js, to_js};
 /// # Returns
 /// A complete PlanetarySystem with star, planets, and metadata.
 #[wasm_bindgen]
-pub fn generate_system_for_solar_analog() -> Result<JsValue, JsError> {
+pub fn generate_system_for_solar_analog() -> PlanetarySystem {
     let star = StellarObject::MainSequence(solar_analog());
-    let system = generate_planetary_system(star, Uuid::new_v4());
-    to_js(&system)
+
+    generate_planetary_system(star, Uuid::new_v4())
 }
 
 /// Generate a planetary system around a random star.
@@ -43,11 +42,11 @@ pub fn generate_system_for_solar_analog() -> Result<JsValue, JsError> {
 /// # Arguments
 /// * `seed` - Random seed for reproducible generation
 #[wasm_bindgen]
-pub fn generate_system_random(seed: u64) -> Result<JsValue, JsError> {
+pub fn generate_system_random(seed: u64) -> PlanetarySystem {
     let mut rng = ChaChaRng::seed_from_u64(seed);
     let star = sample_main_sequence_star(&mut rng);
-    let system = from_star(&star);
-    to_js(&system)
+
+    from_star(&star)
 }
 
 /// Generate a planetary system with a deterministic name-based seed.
@@ -65,10 +64,10 @@ pub fn generate_system_random(seed: u64) -> Result<JsValue, JsError> {
 /// // system1 and system2 are identical
 /// ```
 #[wasm_bindgen]
-pub fn generate_system_from_seed(name: &str) -> Result<JsValue, JsError> {
+pub fn generate_system_from_seed(name: &str) -> PlanetarySystem {
     let star = StellarObject::MainSequence(solar_analog());
-    let system = generate_planetary_system_named(star, name);
-    to_js(&system)
+
+    generate_planetary_system_named(star, name)
 }
 
 /// Generate a planetary system from a UUID string.
@@ -79,12 +78,12 @@ pub fn generate_system_from_seed(name: &str) -> Result<JsValue, JsError> {
 /// # Arguments
 /// * `uuid_str` - A valid UUID string (e.g., "f47ac10b-58cc-4372-a567-0e02b2c3d479")
 #[wasm_bindgen]
-pub fn generate_system_from_uuid(uuid_str: &str) -> Result<JsValue, JsError> {
+pub fn generate_system_from_uuid(uuid_str: &str) -> Result<PlanetarySystem, JsError> {
     let id =
         Uuid::parse_str(uuid_str).map_err(|e| JsError::new(&format!("Invalid UUID: {}", e)))?;
     let star = StellarObject::MainSequence(solar_analog());
-    let system = generate_planetary_system(star, id);
-    to_js(&system)
+
+    Ok(generate_planetary_system(star, id))
 }
 
 // =============================================================================
@@ -99,10 +98,8 @@ pub fn generate_system_from_uuid(uuid_str: &str) -> Result<JsValue, JsError> {
 /// # Arguments
 /// * `star` - A MainSequenceStar object from stellar generation functions
 #[wasm_bindgen]
-pub fn generate_system_for_star(star: JsValue) -> Result<JsValue, JsError> {
-    let star: stellar_forge::MainSequenceStar = from_js(star)?;
-    let system = from_star(&star);
-    to_js(&system)
+pub fn generate_system_for_star(star: MainSequenceStar) -> PlanetarySystem {
+    from_star(&star)
 }
 
 /// Generate a planetary system around a star with a specific UUID.
@@ -112,14 +109,13 @@ pub fn generate_system_for_star(star: JsValue) -> Result<JsValue, JsError> {
 /// * `uuid_str` - UUID string for identification and RNG seeding
 #[wasm_bindgen]
 pub fn generate_system_for_star_with_uuid(
-    star: JsValue,
+    star: MainSequenceStar,
     uuid_str: &str,
-) -> Result<JsValue, JsError> {
-    let star: stellar_forge::MainSequenceStar = from_js(star)?;
+) -> Result<PlanetarySystem, JsError> {
     let id =
         Uuid::parse_str(uuid_str).map_err(|e| JsError::new(&format!("Invalid UUID: {}", e)))?;
-    let system = from_star_with_id(&star, id);
-    to_js(&system)
+
+    Ok(from_star_with_id(&star, id))
 }
 
 /// Generate a planetary system around a star with a seed name.
@@ -128,11 +124,10 @@ pub fn generate_system_for_star_with_uuid(
 /// * `star` - A MainSequenceStar object
 /// * `seed_name` - String used to derive the system's UUID
 #[wasm_bindgen]
-pub fn generate_system_for_star_named(star: JsValue, seed_name: &str) -> Result<JsValue, JsError> {
-    let star: stellar_forge::MainSequenceStar = from_js(star)?;
+pub fn generate_system_for_star_named(star: MainSequenceStar, seed_name: &str) -> PlanetarySystem {
     let stellar_obj = StellarObject::MainSequence(star);
-    let system = generate_planetary_system_named(stellar_obj, seed_name);
-    to_js(&system)
+
+    generate_planetary_system_named(stellar_obj, seed_name)
 }
 
 // =============================================================================
@@ -145,23 +140,22 @@ pub fn generate_system_for_star_named(star: JsValue, seed_name: &str) -> Result<
 /// Each system gets a unique star sampled from the IMF.
 ///
 /// # Arguments
-/// * `count` - Number of systems to generate
 /// * `base_seed` - Base seed (each system uses base_seed + index)
+/// * `count` - Number of systems to generate
 ///
 /// # Returns
 /// Array of PlanetarySystem objects
 #[wasm_bindgen]
-pub fn generate_systems_batch(count: u32, base_seed: u64) -> Result<JsValue, JsError> {
-    let systems: Vec<PlanetarySystem> = (0..count)
+pub fn generate_systems_batch(base_seed: u64, count: u32) -> Vec<PlanetarySystem> {
+    (0..count)
         .map(|i| {
             let seed = base_seed.wrapping_add(i as u64);
             let mut rng = ChaChaRng::seed_from_u64(seed);
             let star = sample_main_sequence_star(&mut rng);
+
             from_star(&star)
         })
-        .collect();
-
-    to_js(&systems)
+        .collect()
 }
 
 /// Generate multiple systems around solar analog stars.
@@ -172,19 +166,17 @@ pub fn generate_systems_batch(count: u32, base_seed: u64) -> Result<JsValue, JsE
 /// * `count` - Number of systems to generate
 /// * `base_seed` - Base seed for reproducibility
 #[wasm_bindgen]
-pub fn generate_solar_systems_batch(count: u32, base_seed: u64) -> Result<JsValue, JsError> {
+pub fn generate_solar_systems_batch(count: u32, base_seed: u64) -> Vec<PlanetarySystem> {
     let star = solar_analog();
 
-    let systems: Vec<PlanetarySystem> = (0..count)
+    (0..count)
         .map(|i| {
             let seed = base_seed.wrapping_add(i as u64);
             // Create deterministic UUID from seed
             let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, &seed.to_le_bytes());
             from_star_with_id(&star, id)
         })
-        .collect();
-
-    to_js(&systems)
+        .collect()
 }
 
 // =============================================================================
@@ -199,14 +191,13 @@ pub fn generate_solar_systems_batch(count: u32, base_seed: u64) -> Result<JsValu
 /// # Returns
 /// Object with innerEdge and outerEdge in AU
 #[wasm_bindgen]
-pub fn system_habitable_zone(system: JsValue) -> Result<JsValue, JsError> {
-    let system: PlanetarySystem = from_js(system)?;
+pub fn system_habitable_zone(system: &PlanetarySystem) -> HabitableZoneInfo {
     let hz = system.habitable_zone();
 
-    to_js(&HabitableZoneInfo {
+    HabitableZoneInfo {
         inner_edge_au: hz.inner_edge,
         outer_edge_au: hz.outer_edge,
-    })
+    }
 }
 
 /// Get the snow line distance for a system.
@@ -219,9 +210,8 @@ pub fn system_habitable_zone(system: JsValue) -> Result<JsValue, JsError> {
 /// # Returns
 /// Snow line distance in AU
 #[wasm_bindgen]
-pub fn system_snow_line(system: JsValue) -> Result<f64, JsError> {
-    let system: PlanetarySystem = from_js(system)?;
-    Ok(system.snow_line())
+pub fn system_snow_line(system: &PlanetarySystem) -> f64 {
+    system.snow_line()
 }
 
 /// Check if a system is dynamically stable.
@@ -231,9 +221,8 @@ pub fn system_snow_line(system: JsValue) -> Result<f64, JsError> {
 /// # Arguments
 /// * `system` - A PlanetarySystem object
 #[wasm_bindgen]
-pub fn system_is_stable(system: JsValue) -> Result<bool, JsError> {
-    let system: PlanetarySystem = from_js(system)?;
-    Ok(system.is_stable())
+pub fn system_is_stable(system: &PlanetarySystem) -> bool {
+    system.is_stable()
 }
 
 /// Get planets in the habitable zone.
@@ -244,19 +233,18 @@ pub fn system_is_stable(system: JsValue) -> Result<bool, JsError> {
 /// # Returns
 /// Array of Planet objects within the habitable zone
 #[wasm_bindgen]
-pub fn system_habitable_planets(system: JsValue) -> Result<JsValue, JsError> {
-    let system: PlanetarySystem = from_js(system)?;
-    let hz_planets: Vec<_> = system
+pub fn system_habitable_planets(system: &PlanetarySystem) -> Vec<Planet> {
+    system
         .habitable_zone_planets()
         .into_iter()
         .cloned()
-        .collect();
-    to_js(&hz_planets)
+        .collect()
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, tsify_next::Tsify)]
 #[serde(rename_all = "camelCase")]
-struct HabitableZoneInfo {
-    inner_edge_au: f64,
-    outer_edge_au: f64,
+#[tsify(into_wasm_abi)]
+pub struct HabitableZoneInfo {
+    pub inner_edge_au: f64,
+    pub outer_edge_au: f64,
 }

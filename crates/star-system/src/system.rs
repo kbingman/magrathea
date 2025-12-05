@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 use stellar::StellarObject;
 use units::{EARTH_MASS_G, SOLAR_MASS_G};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 use crate::architecture::SystemArchitecture;
 use crate::metadata::SystemMetadata;
 use planetary::planet::Planet;
@@ -28,6 +31,8 @@ const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct PlanetarySystem {
     /// Stellar host(s) - at least one required
     ///

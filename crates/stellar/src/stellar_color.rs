@@ -1,8 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 /// RGB color representation for stellar objects
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct StellarColor {
     pub r: u8,
     pub g: u8,

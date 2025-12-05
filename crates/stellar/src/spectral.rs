@@ -2,8 +2,13 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum SpectralType {
     // Main sequence types
     O,
@@ -54,6 +59,8 @@ impl fmt::Display for SpectralType {
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum LuminosityClass {
     IAPLUS, // Hypergiants
     IA,     // Bright supergiants
@@ -88,6 +95,8 @@ impl fmt::Display for LuminosityClass {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum VariabilityType {
     None,
     Cepheid,     // Classical pulsating supergiants

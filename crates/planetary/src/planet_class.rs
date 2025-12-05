@@ -6,6 +6,9 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "tsify")]
+use tsify_next::Tsify;
+
 /// Classification of planet by physical mass regime
 ///
 /// Based on Wolfgang, Rogers, & Ford (2016) with refined boundaries for envelope physics.
@@ -23,6 +26,8 @@ use serde::{Deserialize, Serialize};
 /// - **5 M⊕**: Upper end of Fulton gap - transition to sub-Neptune regime
 /// - **160 M⊕**: Electron degeneracy onset - Jupiter-like behavior begins
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(Tsify))]
+#[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum PlanetClass {
     /// Rocky planets (< 2 M⊕)
     /// Self-compression dominated, cannot retain H/He envelopes
