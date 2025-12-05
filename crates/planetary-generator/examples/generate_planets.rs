@@ -1,12 +1,12 @@
 //! Generate planets CSV with individual planet data
 //!
-//! Usage: cargo run -p planetary --example generate_planets
+//! Usage: cargo run -p planetary-generator --example generate_planets
 //!
 //! Output: planets.csv with one row per planet
 
 use stellar::solar_analog;
 
-use planetary::from_star;
+use planetary_generator::from_star;
 
 fn main() {
     let n_systems = 1000;

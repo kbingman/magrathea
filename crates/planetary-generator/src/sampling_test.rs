@@ -1,4 +1,5 @@
-use crate::{planet_class::PlanetClass, sampling::sample_planet_mass};
+use crate::sampling::sample_planet_mass;
+use planetary::planet_class::PlanetClass;
 
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;

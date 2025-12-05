@@ -1,35 +1,24 @@
+//! Planetary classification and characterization
+//!
+//! This crate provides types and functions for classifying and characterizing
+//! exoplanets based on their physical properties (mass, radius, temperature, etc.).
+
 pub mod composition;
-pub mod generation;
-pub mod metadata;
 pub mod planet;
 pub mod planet_class;
 pub mod planet_type;
-pub mod sampling;
-pub mod system;
 
-// Re-export key generation functions at crate root
-pub use generation::{
-    from_star, from_star_with_id, generate_planetary_system, generate_planetary_system_named,
-    generate_planetary_system_random,
-};
-
-// Re-export metadata types
-pub use metadata::{GenerationMethod, SystemMetadata};
-
-// Re-export planet types
-pub use planet::HostStar;
+// Re-export key types at crate root
+pub use composition::Composition;
+pub use planet::{HostStar, Planet};
+pub use planet_class::PlanetClass;
+pub use planet_type::PlanetType;
 
 #[cfg(test)]
-pub mod composition_test;
+mod composition_test;
 #[cfg(test)]
-pub mod generation_test;
+mod planet_class_test;
 #[cfg(test)]
-pub mod planet_class_test;
+mod planet_test;
 #[cfg(test)]
-pub mod planet_test;
-#[cfg(test)]
-pub mod planet_type_test;
-#[cfg(test)]
-pub mod sampling_test;
-#[cfg(test)]
-pub mod system_test;
+mod planet_type_test;

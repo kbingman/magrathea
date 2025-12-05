@@ -1,0 +1,16 @@
+[package]
+name = "planetary-generator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+star-system = { path = "../star-system" }
+planetary = { path = "../planetary" }
+stellar = { path = "../stellar" }
+units = { path = "../units" }
+
+rand = "0.9"
+rand_chacha = "0.9"
+rand_distr = "0.5"
+serde = "1.0"
+uuid = { version = "1.11", features = ["v4", "v5", "serde"] }

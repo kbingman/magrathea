@@ -1,0 +1,14 @@
+[package]
+name = "star-system"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+planetary = { path = "../planetary" }
+stellar = { path = "../stellar" }
+units = { path = "../units" }
+
+rand = "0.9"
+rand_chacha = "0.9"
+serde = "1.0"
+uuid = { version = "1.11", features = ["v4", "v5", "serde"] }

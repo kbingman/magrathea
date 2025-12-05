@@ -7,7 +7,7 @@ use units::{Mass, Temperature};
 use uuid::Uuid;
 
 use crate::generation::{generate_planetary_system, generate_planetary_system_named};
-use crate::system::snow_line;
+use star_system::snow_line;
 
 /// Create a test star with specified properties
 fn make_test_star(

@@ -15,18 +15,20 @@ use stellar::{MainSequenceStar, StellarObject};
 use units::{EARTH_MASS_G, Length, Mass, SOLAR_MASS_G};
 use uuid::Uuid;
 
-/// Earth masses per solar mass (M☉/M⊕)
-const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
+use planetary::composition::Composition;
+use planetary::planet::{HostStar, Planet};
+use planetary::planet_class::PlanetClass;
+use star_system::{
+    GenerationMethod, HabitableZone, PlanetarySystem, SystemArchitecture, SystemMetadata, snow_line,
+};
 
-use crate::composition::Composition;
-use crate::metadata::{GenerationMethod, SystemMetadata};
-use crate::planet::{HostStar, Planet};
-use crate::planet_class::PlanetClass;
 use crate::sampling::{
     period_to_semi_major_axis, sample_eccentricity, sample_inclination, sample_orbital_period,
     sample_planet_mass,
 };
-use crate::system::{HabitableZone, PlanetarySystem, SystemArchitecture, snow_line};
+
+/// Earth masses per solar mass (M☉/M⊕)
+const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 
 // =============================================================================
 // Outer System Occurrence Rates (from RV, microlensing, direct imaging)
@@ -112,7 +114,7 @@ impl StellarContext {
 /// # Example
 /// ```ignore
 /// use stellar::StellarObject;
-/// use planetary::generate_planetary_system;
+/// use planetary_generator::generate_planetary_system;
 /// use uuid::Uuid;
 ///
 /// let star = StellarObject::MainSequence(my_star);
@@ -149,7 +151,7 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
 /// # Example
 /// ```ignore
 /// use stellar::StellarObject;
-/// use planetary::generate_planetary_system_random;
+/// use planetary_generator::generate_planetary_system_random;
 ///
 /// let star = StellarObject::MainSequence(my_star);
 /// let system = generate_planetary_system_random(star);
@@ -166,7 +168,7 @@ pub fn generate_planetary_system_random(star: StellarObject) -> PlanetarySystem 
 /// # Example
 /// ```ignore
 /// use stellar::StellarObject;
-/// use planetary::generate_planetary_system_named;
+/// use planetary_generator::generate_planetary_system_named;
 ///
 /// let star = StellarObject::MainSequence(my_star);
 /// let system = generate_planetary_system_named(star, "test-system-42");
@@ -187,7 +189,7 @@ pub fn generate_planetary_system_named(star: StellarObject, name: &str) -> Plane
 /// use rand::SeedableRng;
 /// use rand_chacha::ChaChaRng;
 /// use stellar::sample_main_sequence_star;
-/// use planetary::from_star;
+/// use planetary_generator::from_star;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let star = sample_main_sequence_star(&mut rng);
@@ -202,7 +204,7 @@ pub fn from_star(star: &MainSequenceStar) -> PlanetarySystem {
 /// # Example
 /// ```ignore
 /// use stellar::sample_main_sequence_star;
-/// use planetary::from_star_with_id;
+/// use planetary_generator::from_star_with_id;
 /// use uuid::Uuid;
 ///
 /// let star = sample_main_sequence_star(&mut rng);

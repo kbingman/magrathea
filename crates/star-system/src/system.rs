@@ -1,14 +1,13 @@
-//! Planetary system structure and architecture
+//! Planetary system structure
 
-use rand::Rng;
-use rand_chacha::ChaChaRng;
 use serde::{Deserialize, Serialize};
 use stellar::StellarObject;
 use units::{EARTH_MASS_G, SOLAR_MASS_G};
 
+use crate::architecture::SystemArchitecture;
 use crate::metadata::SystemMetadata;
-use crate::planet::Planet;
-use crate::planet_class::PlanetClass;
+use planetary::planet::Planet;
+use planetary::planet_class::PlanetClass;
 
 /// Earth masses per solar mass (M☉/M⊕)
 const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
@@ -21,8 +20,7 @@ const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 /// # Examples
 ///
 /// ```
-/// use planetary::system::{PlanetarySystem, SystemArchitecture};
-/// use planetary::metadata::{SystemMetadata, GenerationMethod};
+/// use star_system::{PlanetarySystem, SystemArchitecture, SystemMetadata, GenerationMethod};
 /// use stellar::StellarObject;
 ///
 /// // Systems are typically created via generation functions,
@@ -173,71 +171,6 @@ impl PlanetarySystem {
     /// Snow line distance in AU
     pub fn snow_line(&self) -> f64 {
         snow_line(self.total_luminosity())
-    }
-}
-
-/// System architecture classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SystemArchitecture {
-    CompactMulti,
-    Mixed,
-    GiantDominated,
-    Sparse,
-}
-
-impl SystemArchitecture {
-    pub fn sample(rng: &mut ChaChaRng, spectral_type: &str, metallicity: f64) -> Self {
-        let giant_prob = 0.10 * 10.0_f64.powf(2.0 * metallicity);
-
-        match spectral_type {
-            "M" => {
-                let roll: f64 = rng.random();
-                match roll {
-                    x if x < 0.45 => Self::CompactMulti,
-                    x if x < 0.70 => Self::Sparse,
-                    x if x < 0.70 + giant_prob * 0.3 => Self::GiantDominated,
-                    _ => Self::Mixed,
-                }
-            }
-            "K" | "G" => {
-                let roll: f64 = rng.random();
-                match roll {
-                    x if x < 0.25 => Self::CompactMulti,
-                    x if x < 0.50 => Self::Mixed,
-                    x if x < 0.50 + giant_prob => Self::GiantDominated,
-                    _ => Self::Sparse,
-                }
-            }
-            "F" | "A" | "B" => {
-                let roll: f64 = rng.random();
-                match roll {
-                    x if x < giant_prob * 1.5 => Self::GiantDominated,
-                    x if x < 0.20 => Self::Mixed,
-                    _ => Self::Sparse,
-                }
-            }
-            _ => Self::Sparse,
-        }
-    }
-
-    pub fn expected_planet_count(&self) -> (usize, usize) {
-        match self {
-            Self::CompactMulti => (4, 8),
-            Self::Mixed => (2, 5),
-            Self::GiantDominated => (1, 3),
-            Self::Sparse => (0, 1),
-        }
-    }
-}
-
-impl std::fmt::Display for SystemArchitecture {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::CompactMulti => write!(f, "Compact Multi-planet"),
-            Self::Mixed => write!(f, "Mixed"),
-            Self::GiantDominated => write!(f, "Giant-dominated"),
-            Self::Sparse => write!(f, "Sparse"),
-        }
     }
 }
 

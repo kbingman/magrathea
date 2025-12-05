@@ -5,7 +5,7 @@
 use rand::Rng;
 use rand_chacha::ChaChaRng;
 
-use crate::planet_class::PlanetClass;
+use planetary::planet_class::PlanetClass;
 
 /// Sample planet mass using occurrence-weighted distribution
 pub fn sample_planet_mass(rng: &mut ChaChaRng, stellar_metallicity: f64) -> f64 {
