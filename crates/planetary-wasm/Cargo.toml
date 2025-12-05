@@ -1,0 +1,28 @@
+[package]
+name = "planetary-wasm"
+version = "0.1.0"
+edition = "2024"
+description = "WASM bindings for statistical planetary system generation"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+planetary = { path = "../planetary" }
+planetary-generator = { path = "../planetary-generator" }
+star-system = { path = "../star-system" }
+stellar = { path = "../stellar" }
+stellar_forge = { path = "../stellar-forge" }
+units = { path = "../units" }
+
+wasm-bindgen = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+rand = "0.9"
+rand_chacha = "0.9"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+uuid = { version = "1.11", features = ["v4", "v5", "serde", "js"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

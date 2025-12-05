@@ -206,6 +206,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "planetary-wasm"
+version = "0.1.0"
+dependencies = [
+ "getrandom",
+ "js-sys",
+ "planetary",
+ "planetary-generator",
+ "rand",
+ "rand_chacha",
+ "serde",
+ "serde-wasm-bindgen",
+ "star-system",
+ "stellar",
+ "stellar_forge",
+ "units",
+ "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"

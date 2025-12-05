@@ -103,58 +103,94 @@ This prevents dynamically unstable configurations from being output.
 
 ### Crate Structure
 
+The system is split into three focused crates:
+
 ```
-planetary/
-├── Cargo.toml
-└── src/
-    ├── lib.rs              # Crate root, re-exports
-    ├── planet_class.rs     # PlanetClass enum (4 regimes)
-    ├── planet_type.rs      # PlanetType enum (21 expressions)
-    ├── planet.rs           # Planet struct, M-R relations, factories
-    ├── composition.rs      # Composition (iron/silicate/water/H-He)
-    ├── sampling.rs         # Occurrence rates, period/mass sampling
-    ├── system.rs           # PlanetarySystem, SystemArchitecture
-    └── generation.rs       # Main pipeline: generate_planetary_system()
+crates/
+├── planetary/              # Planet classification (no generation logic)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs          # Re-exports
+│       ├── planet_class.rs # PlanetClass enum (Rocky, Transitional, Volatile, Giant)
+│       ├── planet_type.rs  # PlanetType enum (21 expressions)
+│       ├── planet.rs       # Planet struct, M-R relations, HostStar
+│       └── composition.rs  # Composition (iron/silicate/water/H-He)
+│
+├── star-system/            # Unified output types for all backends
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs          # Re-exports
+│       ├── system.rs       # PlanetarySystem (Vec<StellarObject>, Vec<Planet>)
+│       ├── metadata.rs     # SystemMetadata (UUID, GenerationMethod)
+│       └── architecture.rs # SystemArchitecture enum
+│
+└── planetary-generator/    # Statistical generation (one backend)
+    ├── Cargo.toml
+    └── src/
+        ├── lib.rs          # Re-exports generation functions
+        ├── generation.rs   # Main pipeline: generate_planetary_system()
+        └── sampling.rs     # Occurrence rates, period/mass sampling
 ```
 
 ### Dependencies
 
 ```toml
+# planetary/Cargo.toml
 [dependencies]
-units = { path = "../units" }      # Your units crate
+units = { path = "../units" }
 serde = { version = "1.0", features = ["derive"] }
-rand = "0.8"
-rand_chacha = "0.3"
+rand = "0.9"
+rand_chacha = "0.9"
+
+# star-system/Cargo.toml
+[dependencies]
+planetary = { path = "../planetary" }
+stellar = { path = "../stellar" }
+units = { path = "../units" }
+uuid = { version = "1.11", features = ["v4", "v5", "serde"] }
+serde = "1.0"
+
+# planetary-generator/Cargo.toml
+[dependencies]
+planetary = { path = "../planetary" }
+star-system = { path = "../star-system" }
+stellar = { path = "../stellar" }
+units = { path = "../units" }
+uuid = { version = "1.11", features = ["v4", "v5"] }
+rand = "0.9"
+rand_chacha = "0.9"
 ```
 
 ### Core Types
 
 ```rust
-// Primary classification
+// Primary classification (in planetary crate)
 pub enum PlanetClass {
-    Terrestrial,   // M < 2 M⊕
-    Transitional,  // 2-5 M⊕
-    Volatile,      // 5-160 M⊕
-    Degenerate,    // > 160 M⊕
+    Rocky,         // M < 2 M⊕ (formerly Terrestrial)
+    Transitional,  // 2-10 M⊕
+    Volatile,      // 10-160 M⊕
+    Giant,         // > 160 M⊕ (formerly Degenerate)
 }
 
-// Observable expression (21 variants)
+// Observable expression (21+ variants, in planetary crate)
 pub enum PlanetType {
-    SubEarth,
-    Barren,
-    Lava { tidally_locked: bool, surface_temp_k: f64 },
+    SubTerran,
+    Terran,
+    SuperTerran,
+    MiniNeptune,
     // ... etc
 }
 
-// Bulk composition as mass fractions
+// Bulk composition as mass fractions (in planetary crate)
 pub struct Composition {
-    pub iron: f64,
-    pub silicate: f64,
-    pub water: f64,
-    pub h_he: f64,
+    pub iron_mass_fraction: f64,
+    pub rock_mass_fraction: f64,
+    pub water_mass_fraction: f64,
+    pub gas_mass_fraction: f64,
+    pub detail: Option<CompositionDetail>,
 }
 
-// Complete planet
+// Complete planet (in planetary crate)
 pub struct Planet {
     pub mass: Mass,
     pub radius: Length,
@@ -164,12 +200,12 @@ pub struct Planet {
     pub class: PlanetClass,
     pub planet_type: PlanetType,
     pub composition: Composition,
-    pub equilibrium_temp: Temperature,
-    pub surface_gravity: f64,
-    pub escape_velocity: Velocity,
+    pub equilibrium_temp: f64,  // Kelvin
+    pub surface_gravity: f64,   // m/s²
+    pub escape_velocity: f64,   // m/s
 }
 
-// System architecture classification
+// System architecture classification (in star-system crate)
 pub enum SystemArchitecture {
     CompactMulti,    // TRAPPIST-1 style
     Mixed,           // Solar System style
@@ -177,15 +213,19 @@ pub enum SystemArchitecture {
     Sparse,          // Few or no planets
 }
 
-// Complete system
-pub struct PlanetarySystem {
-    pub stellar_mass: f64,
-    pub stellar_luminosity: f64,
-    pub stellar_temperature: f64,
-    pub stellar_metallicity: f64,
-    pub spectral_type: String,
-    pub planets: Vec<Planet>,
+// System metadata (in star-system crate)
+pub struct SystemMetadata {
+    pub id: Uuid,
+    pub generation_method: GenerationMethod,
     pub architecture: SystemArchitecture,
+    pub name: Option<String>,
+}
+
+// Complete system (in star-system crate)
+pub struct PlanetarySystem {
+    pub stars: Vec<StellarObject>,  // At least one star
+    pub planets: Vec<Planet>,       // Sorted by semi-major axis
+    pub metadata: SystemMetadata,
 }
 ```
 
@@ -220,79 +260,90 @@ pub struct PlanetarySystem {
 ### Basic Generation
 
 ```rust
-use rand::SeedableRng;
-use rand_chacha::ChaChaRng;
-use planetary::generate_planetary_system;
+use stellar_forge::solar_analog;
+use planetary_generator::{generate_planetary_system, from_star};
+use uuid::Uuid;
 
-let mut rng = ChaChaRng::seed_from_u64(42);
+// From a StellarObject with specific UUID
+let star = stellar::StellarObject::MainSequence(solar_analog());
+let system = generate_planetary_system(star, Uuid::new_v4());
 
-// Sun-like star
-let system = generate_planetary_system(
-    &mut rng,
-    1.0,    // stellar mass (M☉)
-    1.0,    // stellar luminosity (L☉)  
-    5778.0, // stellar temperature (K)
-    0.0,    // stellar metallicity [Fe/H]
-    "G",    // spectral type
-);
-
-println!("Architecture: {}", system.architecture);
+println!("System: {}", system.metadata.catalog_name());
+println!("Architecture: {:?}", system.metadata.architecture);
 println!("Planets: {}", system.planets.len());
 
 for planet in &system.planets {
     println!(
-        "  {}: {:.2} M⊕ at {:.2} AU ({})",
+        "  {:?}: {:.2} M⊕ at {:.2} AU ({:?})",
         planet.planet_type,
         planet.mass.to_earth_masses(),
         planet.semi_major_axis.to_au(),
         planet.class,
     );
 }
+
+// From a MainSequenceStar (convenience function, random UUID)
+let star = stellar_forge::sample_main_sequence_star(&mut rng);
+let system = from_star(&star);
 ```
 
-### Convenience Functions
+### Reproducible Generation
 
 ```rust
-// Solar System analog
-let system = solar_system_analog(&mut rng);
+use planetary_generator::generate_planetary_system_named;
+use stellar_forge::solar_analog;
+use stellar::StellarObject;
 
-// M dwarf system (0.3 M☉)
-let system = m_dwarf_system(&mut rng, 0.3);
+// Same name always produces same system
+let star = StellarObject::MainSequence(solar_analog());
+let system1 = generate_planetary_system_named(star.clone(), "my-system-42");
+let system2 = generate_planetary_system_named(star, "my-system-42");
 
-// Force a hot Jupiter system
-let system = hot_jupiter_system(&mut rng);
+assert_eq!(system1.planets.len(), system2.planets.len());
+assert_eq!(system1.metadata.id, system2.metadata.id);
 ```
 
-### Custom Configuration
+### Population Studies
 
 ```rust
-use planetary::{generate_planetary_system_with_config, GenerationConfig};
+use rand::SeedableRng;
+use rand_chacha::ChaChaRng;
+use stellar_forge::sample_main_sequence_star;
+use planetary_generator::from_star;
 
-let config = GenerationConfig {
-    max_stability_attempts: 100,
-    min_hill_separation: 10.0,  // Stricter stability
-    enforce_stability: true,
-};
+let mut rng = ChaChaRng::seed_from_u64(42);
 
-let system = generate_planetary_system_with_config(
-    &mut rng, 1.0, 1.0, 5778.0, 0.0, "G", &config
-);
+// Generate 1000 systems for statistical analysis
+let systems: Vec<_> = (0..1000)
+    .map(|_| {
+        let star = sample_main_sequence_star(&mut rng);
+        from_star(&star)
+    })
+    .collect();
+
+// Count architectures
+let compact = systems.iter()
+    .filter(|s| matches!(s.metadata.architecture, SystemArchitecture::CompactMulti))
+    .count();
+println!("Compact multi-planet systems: {}/1000", compact);
 ```
 
 ---
 
 ## Next Steps
 
-### Phase 1: Core Refinement (Current)
+### Phase 1: Core Implementation ✅ (Complete)
 
-- [x] Basic crate structure
+- [x] Basic crate structure (split into `planetary`, `star-system`, `planetary-generator`)
 - [x] PlanetClass and PlanetType enums
 - [x] Planet struct with M-R relations
-- [x] Composition system
-- [x] Occurrence rate sampling
-- [x] System architecture classification
-- [x] Stability filtering
-- [ ] **Integration with stellar_forge crate** (convenience methods)
+- [x] Composition system with detailed breakdowns
+- [x] Occurrence rate sampling (inner system via Kepler + outer system via RV/microlensing)
+- [x] System architecture classification (CompactMulti, Mixed, GiantDominated, Sparse)
+- [x] Stability filtering (Hill criterion)
+- [x] **Stellar integration**: `from_star(&MainSequenceStar)`, `generate_planetary_system(StellarObject, Uuid)`
+- [x] UUID-based identification and RNG seeding
+- [x] TNO/Kuiper Belt object generation
 - [ ] **Validation against Kepler statistics** (occurrence rates, period ratios)
 - [ ] **Unit tests for edge cases** (very low/high metallicity, extreme masses)
 
@@ -319,38 +370,60 @@ let system = generate_planetary_system_with_config(
 - [ ] **Giant planet eccentricities**: Should be higher than small planets
 - [ ] **Hot Jupiter lonely phenomenon**: Systems with hot Jupiters lack nearby companions
 
-### Phase 5: Integration
+### Phase 5: Integration ✅ (Complete)
 
-- [ ] **WASM bindings**: For web visualization
-- [ ] **Stellar integration**: `generate_for_star(&MainSequenceStar)`
+- [x] **WASM bindings**: `planetary-wasm` crate for web visualization
+- [x] **Stellar integration**: `from_star(&MainSequenceStar)` and `generate_planetary_system(StellarObject, Uuid)`
 - [ ] **Emergent simulation handoff**: Use statistical generator for initial conditions
 
 ---
 
 ## Integration with Stellar Forge
 
-The `planetary` crate is designed to integrate with the existing stellar generation code. A future integration might look like:
+The `planetary-generator` crate integrates directly with the stellar generation code via `StellarObject`:
 
 ```rust
-// In planetary crate, with `stellar` feature enabled
-use stellar_forge::stellar::MainSequenceStar;
+use stellar_forge::{sample_main_sequence_star, solar_analog};
+use stellar::StellarObject;
+use planetary_generator::{generate_planetary_system, from_star, from_star_with_id};
+use uuid::Uuid;
 
-impl PlanetarySystem {
-    pub fn generate_for_star(rng: &mut ChaChaRng, star: &MainSequenceStar) -> Self {
-        generate_planetary_system(
-            rng,
-            star.mass.to_solar_masses(),
-            star.luminosity,
-            star.temperature.to_kelvin(),
-            star.metallicity,
-            &star.spectral_type.to_string(),
-        )
-    }
-}
-
-// Usage
+// Method 1: From MainSequenceStar (convenience)
+let mut rng = ChaChaRng::seed_from_u64(42);
 let star = sample_main_sequence_star(&mut rng);
-let system = PlanetarySystem::generate_for_star(&mut rng, &star);
+let system = from_star(&star);  // Random UUID
+
+// Method 2: With specific UUID for reproducibility
+let star = sample_main_sequence_star(&mut rng);
+let id = Uuid::new_v4();
+let system = from_star_with_id(&star, id);
+
+// Method 3: From any StellarObject (supports giants, white dwarfs, etc.)
+let star = StellarObject::MainSequence(solar_analog());
+let system = generate_planetary_system(star, Uuid::new_v4());
+
+// The generation method is tracked in metadata
+assert!(matches!(system.metadata.generation_method, GenerationMethod::Statistical));
+```
+
+### Multiple Backends
+
+The `star-system` crate defines the unified output format, allowing multiple generation backends:
+
+```rust
+use star_system::{PlanetarySystem, GenerationMethod};
+
+// Statistical generator (fast, occurrence-rate based)
+let system = planetary_generator::from_star(&star);
+assert_eq!(system.metadata.generation_method, GenerationMethod::Statistical);
+
+// Future: Physics-based formation simulation
+// let system = stellar_forge::simulate_formation(disk, star, id);
+// assert_eq!(system.metadata.generation_method, GenerationMethod::StellarForge);
+
+// Manual/imported systems
+// let system = PlanetarySystem::new(stars, planets, metadata);
+// metadata.generation_method = GenerationMethod::Manual;
 ```
 
 ---

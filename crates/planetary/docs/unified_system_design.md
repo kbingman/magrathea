@@ -467,32 +467,69 @@ pub fn simulate_formation(
 }
 ```
 
-## Open Questions
+## Design Decisions (Resolved)
 
 1. **Where should the unified type live?**
-   - Option A: In `planetary` crate (requires `stellar` dependency)
-   - Option B: New `system` crate (clean separation)
-   - Option C: In `stellar` crate (inverts dependency)
-
-   **Recommendation**: Option A - keep in `planetary` since it's the primary consumer
+   - **Decision**: New `star-system` crate (Option B) - provides clean separation
+   - The `star-system` crate depends on both `planetary` and `stellar`
+   - The `planetary-generator` crate depends on `star-system` for output types
 
 2. **Should `stars` be `NonEmpty<StellarObject>`?**
-   - Pro: Compile-time guarantee of at least one star
-   - Con: Adds dependency, more complex API
-
-   **Recommendation**: Use `Vec` with runtime validation in constructor
+   - **Decision**: Use `Vec` with runtime assertion in constructor
+   - `PlanetarySystem::new()` panics if `stars` is empty
+   - Simple API, clear error at construction time
 
 3. **Binary orbit parameters**
-   - Should binary orbital elements be in `SystemMetadata` or separate?
-   - What about hierarchical triples?
-
-   **Recommendation**: Defer to Phase 2, keep single-star focus initially
+   - **Decision**: Deferred - single-star focus initially
+   - `BinaryConfiguration` enum defined but not yet integrated
+   - Can be added to `SystemMetadata` when binary support is implemented
 
 4. **Planet-star assignment in binaries**
-   - Which star does each planet orbit?
-   - Need `host_star_index: Option<usize>` on `Planet`?
+   - **Decision**: Deferred - all planets orbit primary/barycenter initially
+   - Future: May add `host_star_index: Option<usize>` on `Planet`
 
-   **Recommendation**: Defer, assume all planets orbit primary/barycenter initially
+## Current Crate Structure
+
+```
+crates/
+├── planetary/              # Planet classification and characterization
+│   └── src/
+│       ├── lib.rs          # Re-exports: Planet, PlanetClass, PlanetType, Composition
+│       ├── planet.rs       # Planet struct, HostStar
+│       ├── planet_class.rs # PlanetClass enum (Rocky, Transitional, Volatile, Giant)
+│       ├── planet_type.rs  # PlanetType enum (21+ variants)
+│       └── composition.rs  # Composition struct
+│
+├── star-system/            # Unified system output types
+│   └── src/
+│       ├── lib.rs          # Re-exports all types
+│       ├── system.rs       # PlanetarySystem, HabitableZone
+│       ├── metadata.rs     # SystemMetadata, GenerationMethod
+│       └── architecture.rs # SystemArchitecture enum
+│
+├── planetary-generator/    # Statistical system generation
+│   └── src/
+│       ├── lib.rs          # Re-exports generation functions
+│       ├── generation.rs   # generate_planetary_system(), from_star()
+│       └── sampling.rs     # Occurrence rate sampling functions
+│
+├── stellar/                # Stellar objects and classification
+│   └── src/
+│       ├── lib.rs          # Re-exports
+│       └── stellar_objects.rs  # StellarObject enum with accessor methods
+│
+├── magrathea-wasm/         # WASM bindings for stellar-forge (disks, formation)
+│   └── src/
+│       ├── lib.rs          # Shared utilities (to_js, from_js)
+│       ├── stellar.rs      # Stellar generation bindings
+│       └── disk.rs         # Disk generation bindings
+│
+└── planetary-wasm/         # WASM bindings for statistical generation
+    └── src/
+        ├── lib.rs          # Shared utilities
+        ├── stellar.rs      # Star generation for systems
+        └── system.rs       # System generation and queries
+```
 
 ## Implementation Plan
 
@@ -627,47 +664,55 @@ pub enum GenerationMethod { ... }
 
 ### Checklist
 
-- [ ] **Phase 1**: Stellar accessor methods
-  - [ ] `StellarObject::luminosity()`
-  - [ ] `StellarObject::mass()`
-  - [ ] `StellarObject::temperature()`
-  - [ ] `StellarObject::metallicity()`
-  - [ ] `StellarObject::spectral_type_string()`
-  - [ ] Unit tests
+- [x] **Phase 1**: Stellar accessor methods ✅ (completed)
+  - [x] `StellarObject::luminosity()`
+  - [x] `StellarObject::mass()`
+  - [x] `StellarObject::temperature()`
+  - [x] `StellarObject::metallicity()`
+  - [x] `StellarObject::spectral_type_string()`
+  - [x] Unit tests
 
-- [ ] **Phase 2**: New metadata types
-  - [ ] Add `uuid` dependency with `v4`, `v5`, `serde` features
-  - [ ] `SystemMetadata` struct with `id: Uuid`, `name: Option<String>`
-  - [ ] `GenerationMethod` enum
-  - [ ] `SystemMetadata::seed()` - derive u64 from UUID
-  - [ ] `SystemMetadata::catalog_name()` - generate "XX-0000" format
-  - [ ] `SystemMetadata::display_name()` - proper name or catalog name
-  - [ ] `SystemMetadata::new_random()` constructor
-  - [ ] `SystemMetadata::from_seed_name()` constructor
-  - [ ] `SystemMetadata::with_name()` builder method
-  - [ ] Export from lib.rs
+- [x] **Phase 2**: New metadata types ✅ (completed in `star-system` crate)
+  - [x] Add `uuid` dependency with `v4`, `v5`, `serde` features
+  - [x] `SystemMetadata` struct with `id: Uuid`, `name: Option<String>`
+  - [x] `GenerationMethod` enum
+  - [x] `SystemMetadata::seed()` - derive u64 from UUID
+  - [x] `SystemMetadata::catalog_name()` - generate "XX-0000" format
+  - [x] `SystemMetadata::display_name()` - proper name or catalog name
+  - [x] `SystemMetadata::new_random()` constructor
+  - [x] `SystemMetadata::from_seed_name()` constructor
+  - [x] `SystemMetadata::with_name()` builder method
+  - [x] Export from lib.rs
 
-- [ ] **Phase 3**: Unified PlanetarySystem
-  - [ ] Add stellar dependency
-  - [ ] Replace fields with `stars: Vec<StellarObject>`
-  - [ ] Add `metadata: SystemMetadata`
-  - [ ] Implement accessor methods
-  - [ ] Update existing methods
+- [x] **Phase 3**: Unified PlanetarySystem ✅ (completed in `star-system` crate)
+  - [x] Add stellar dependency
+  - [x] Replace fields with `stars: Vec<StellarObject>`
+  - [x] Add `metadata: SystemMetadata`
+  - [x] Implement accessor methods (`primary_star`, `total_luminosity`, `effective_mass`, etc.)
+  - [x] Update existing methods (`is_stable`, `habitable_zone_planets`, etc.)
 
-- [ ] **Phase 4**: Update generators
-  - [ ] Update signature: `generate_planetary_system(star, id: Uuid)`
-  - [ ] Add `generate_planetary_system_random()`
-  - [ ] Add `generate_planetary_system_named()`
-  - [ ] Update internal helpers
+- [x] **Phase 4**: Update generators ✅ (completed in `planetary-generator` crate)
+  - [x] Update signature: `generate_planetary_system(star: StellarObject, id: Uuid)`
+  - [x] Add `generate_planetary_system_random()`
+  - [x] Add `generate_planetary_system_named()`
+  - [x] Add `from_star()` and `from_star_with_id()` convenience functions
+  - [x] Update internal helpers
 
-- [ ] **Phase 5**: Examples and tests
-  - [ ] Fix all examples
-  - [ ] Fix all tests
-  - [ ] Add UUID serialization tests
+- [x] **Phase 5**: Examples and tests ✅ (completed)
+  - [x] Fix all examples
+  - [x] Fix all tests
+  - [x] Add UUID serialization tests
 
-- [ ] **Phase 6**: Stellar-forge integration
+- [ ] **Phase 6**: Stellar-forge integration (deferred)
   - [ ] Review/update stellar-forge
   - [ ] Document integration
+
+- [x] **Phase 7**: WASM bindings ✅ (completed in `planetary-wasm` crate)
+  - [x] Create new `planetary-wasm` crate (separate from `magrathea-wasm`)
+  - [x] System generation functions (`generate_system_*`)
+  - [x] Batch generation (`generate_systems_batch`, `generate_solar_systems_batch`)
+  - [x] System query functions (`system_habitable_zone`, `system_snow_line`, etc.)
+  - [x] Stellar generation for custom stars
 
 ---
 
