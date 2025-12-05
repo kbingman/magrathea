@@ -12,6 +12,33 @@ use crate::composition::Composition;
 use crate::planet_class::PlanetClass;
 use crate::planet_type::PlanetType;
 
+/// Host star properties for planet characterization
+///
+/// Groups stellar parameters needed for calculating planet properties
+/// like equilibrium temperature and type classification.
+#[derive(Debug, Clone, Copy)]
+pub struct HostStar {
+    /// Stellar luminosity in solar luminosities (L☉)
+    pub luminosity: f64,
+    /// Stellar mass in solar masses (M☉)
+    pub mass: f64,
+}
+
+impl HostStar {
+    /// Create a new host star context
+    pub fn new(luminosity: f64, mass: f64) -> Self {
+        Self { luminosity, mass }
+    }
+
+    /// Solar values (L = 1 L☉, M = 1 M☉)
+    pub fn solar() -> Self {
+        Self {
+            luminosity: 1.0,
+            mass: 1.0,
+        }
+    }
+}
+
 /// A fully characterized planet
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,13 +74,12 @@ impl Planet {
         eccentricity: f64,
         inclination: f64,
         composition: Composition,
-        stellar_luminosity: f64,
-        stellar_mass: f64,
+        host: HostStar,
     ) -> Self {
         let class = PlanetClass::from_earth_masses(mass.to_earth_masses());
         let sma_au = semi_major_axis.to_au();
-        let equilibrium_temp = calculate_equilibrium_temp(sma_au, stellar_luminosity);
-        let incident_flux = stellar_luminosity / sma_au.powi(2);
+        let equilibrium_temp = calculate_equilibrium_temp(sma_au, host.luminosity);
+        let incident_flux = host.luminosity / sma_au.powi(2);
 
         let planet_type = PlanetType::from_environment(
             class,
@@ -61,7 +87,7 @@ impl Planet {
             equilibrium_temp,
             incident_flux,
             mass.to_earth_masses(),
-            stellar_mass,
+            host.mass,
             sma_au,
         );
 
@@ -87,8 +113,7 @@ impl Planet {
         eccentricity: f64,
         inclination: f64,
         composition: Composition,
-        stellar_luminosity: f64,
-        stellar_mass: f64,
+        host: HostStar,
         rng: &mut impl Rng,
     ) -> Self {
         let mass_earth = mass.to_earth_masses();
@@ -110,8 +135,7 @@ impl Planet {
             eccentricity,
             inclination,
             composition,
-            stellar_luminosity,
-            stellar_mass,
+            host,
         )
     }
 
@@ -217,8 +241,7 @@ pub fn earth_analog() -> Planet {
         0.017,
         0.0,
         Composition::earth_like(),
-        1.0, // stellar luminosity
-        1.0, // stellar mass
+        HostStar::solar(),
     )
 }
 
@@ -231,8 +254,7 @@ pub fn jupiter_analog() -> Planet {
         0.049,
         0.022,
         Composition::gas_giant(),
-        1.0, // stellar luminosity
-        1.0, // stellar mass
+        HostStar::solar(),
     )
 }
 
@@ -245,7 +267,6 @@ pub fn neptune_analog() -> Planet {
         0.009,
         0.031,
         Composition::ice_giant(),
-        1.0, // stellar luminosity
-        1.0, // stellar mass
+        HostStar::solar(),
     )
 }

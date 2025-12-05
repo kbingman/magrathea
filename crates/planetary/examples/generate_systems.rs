@@ -16,14 +16,14 @@ fn main() {
 
     // CSV header
     println!(
-        "system_id,spectral_type,stellar_mass,stellar_luminosity,stellar_temp,metallicity,\
+        "system_id,catalog_name,spectral_type,stellar_mass,stellar_luminosity,stellar_temp,metallicity,\
          architecture,n_planets,n_rocky,n_transitional,n_volatile,n_giant,\
          has_hz_planet,innermost_au,outermost_au"
     );
 
     for i in 0..n_systems {
         let star = sample_main_sequence_star(&mut rng);
-        let system = from_star(&mut rng, &star);
+        let system = from_star(&star);
 
         let n_rocky = system
             .planets
@@ -60,14 +60,15 @@ fn main() {
             .unwrap_or(0.0);
 
         println!(
-            "{},{},{:.4},{:.6},{:.0},{:.3},{},{},{},{},{},{},{},{:.4},{:.4}",
+            "{},{},{},{:.4},{:.6},{:.0},{:.3},{},{},{},{},{},{},{},{:.4},{:.4}",
             i,
-            system.spectral_type,
-            system.stellar_mass,
-            system.stellar_luminosity,
-            system.stellar_temperature,
-            system.stellar_metallicity,
-            system.architecture,
+            system.metadata.catalog_name(),
+            system.spectral_type(),
+            system.effective_mass(),
+            system.total_luminosity(),
+            system.primary_star().temperature(),
+            system.metallicity(),
+            system.architecture(),
             system.planets.len(),
             n_rocky,
             n_transitional,

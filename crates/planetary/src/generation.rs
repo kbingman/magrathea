@@ -9,15 +9,18 @@
 //! See `docs/OCCURRENCE_RATES.md` for detailed calibration.
 
 use rand::Rng;
+use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
-use stellar::MainSequenceStar;
+use stellar::{MainSequenceStar, StellarObject};
 use units::{EARTH_MASS_G, Length, Mass, SOLAR_MASS_G};
+use uuid::Uuid;
 
 /// Earth masses per solar mass (M☉/M⊕)
 const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 
 use crate::composition::Composition;
-use crate::planet::Planet;
+use crate::metadata::{GenerationMethod, SystemMetadata};
+use crate::planet::{HostStar, Planet};
 use crate::planet_class::PlanetClass;
 use crate::sampling::{
     period_to_semi_major_axis, sample_eccentricity, sample_inclination, sample_orbital_period,
@@ -97,40 +100,87 @@ impl StellarContext {
     }
 }
 
-/// Generate a complete planetary system
-pub fn generate_planetary_system(
-    rng: &mut ChaChaRng,
-    stellar_mass: f64,
-    stellar_luminosity: f64,
-    stellar_temperature: f64,
-    stellar_metallicity: f64,
-    spectral_type: &str,
-) -> PlanetarySystem {
-    let star = StellarContext::new(stellar_mass, stellar_luminosity, stellar_metallicity);
-    let architecture = SystemArchitecture::sample(rng, spectral_type, stellar_metallicity);
+/// Generate a complete planetary system from a stellar object and UUID
+///
+/// The UUID serves as both the system identifier and the source for the RNG seed,
+/// ensuring reproducible generation.
+///
+/// # Arguments
+/// * `star` - The stellar host (wrapped in StellarObject)
+/// * `id` - UUID for identification and RNG seed derivation
+///
+/// # Example
+/// ```ignore
+/// use stellar::StellarObject;
+/// use planetary::generate_planetary_system;
+/// use uuid::Uuid;
+///
+/// let star = StellarObject::MainSequence(my_star);
+/// let system = generate_planetary_system(star, Uuid::new_v4());
+/// ```
+pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySystem {
+    let seed = id.as_u64_pair().0;
+    let mut rng = ChaChaRng::seed_from_u64(seed);
+
+    let stellar_mass = star.mass().to_solar_masses();
+    let stellar_luminosity = star.luminosity();
+    let stellar_metallicity = star.metallicity();
+    let spectral_type = star.spectral_type_string();
+
+    let ctx = StellarContext::new(stellar_mass, stellar_luminosity, stellar_metallicity);
+    let architecture = SystemArchitecture::sample(&mut rng, &spectral_type, stellar_metallicity);
 
     let planets = match architecture {
-        SystemArchitecture::CompactMulti => generate_compact_system(rng, &star),
-        SystemArchitecture::Mixed => generate_mixed_system(rng, &star),
-        SystemArchitecture::GiantDominated => generate_giant_system(rng, &star),
-        SystemArchitecture::Sparse => generate_sparse_system(rng, &star),
+        SystemArchitecture::CompactMulti => generate_compact_system(&mut rng, &ctx),
+        SystemArchitecture::Mixed => generate_mixed_system(&mut rng, &ctx),
+        SystemArchitecture::GiantDominated => generate_giant_system(&mut rng, &ctx),
+        SystemArchitecture::Sparse => generate_sparse_system(&mut rng, &ctx),
     };
 
-    PlanetarySystem::new(
-        stellar_mass,
-        stellar_luminosity,
-        stellar_temperature,
-        stellar_metallicity,
-        spectral_type.to_string(),
-        planets,
-        architecture,
-    )
+    let metadata = SystemMetadata::with_id(id, GenerationMethod::Statistical, architecture);
+
+    PlanetarySystem::new(vec![star], planets, metadata)
+}
+
+/// Generate a planetary system with a random UUID
+///
+/// Convenience function that generates a random UUID for the system.
+///
+/// # Example
+/// ```ignore
+/// use stellar::StellarObject;
+/// use planetary::generate_planetary_system_random;
+///
+/// let star = StellarObject::MainSequence(my_star);
+/// let system = generate_planetary_system_random(star);
+/// ```
+pub fn generate_planetary_system_random(star: StellarObject) -> PlanetarySystem {
+    generate_planetary_system(star, Uuid::new_v4())
+}
+
+/// Generate a planetary system with a deterministic UUID from a name
+///
+/// The name is hashed to create a reproducible UUID, so the same name
+/// always produces the same system (given the same star).
+///
+/// # Example
+/// ```ignore
+/// use stellar::StellarObject;
+/// use planetary::generate_planetary_system_named;
+///
+/// let star = StellarObject::MainSequence(my_star);
+/// let system = generate_planetary_system_named(star, "test-system-42");
+/// // Calling again with same name produces identical system
+/// ```
+pub fn generate_planetary_system_named(star: StellarObject, name: &str) -> PlanetarySystem {
+    let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, name.as_bytes());
+    generate_planetary_system(star, id)
 }
 
 /// Generate a planetary system from a `MainSequenceStar`
 ///
-/// This is a convenience function that extracts stellar properties from a
-/// `MainSequenceStar` and delegates to `generate_planetary_system`.
+/// Convenience function that wraps the star in a `StellarObject` and generates
+/// with a random UUID.
 ///
 /// # Example
 /// ```ignore
@@ -141,23 +191,25 @@ pub fn generate_planetary_system(
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let star = sample_main_sequence_star(&mut rng);
-/// let system = from_star(&mut rng, &star);
+/// let system = from_star(&star);
 /// ```
-pub fn from_star(rng: &mut ChaChaRng, star: &MainSequenceStar) -> PlanetarySystem {
-    let stellar_mass = star.mass.to_solar_masses();
-    let stellar_luminosity = star.luminosity;
-    let stellar_temperature = star.temperature.to_kelvin();
-    let stellar_metallicity = star.metallicity;
-    let spectral_type = format!("{}", star.spectral_type);
+pub fn from_star(star: &MainSequenceStar) -> PlanetarySystem {
+    generate_planetary_system_random(StellarObject::MainSequence(star.clone()))
+}
 
-    generate_planetary_system(
-        rng,
-        stellar_mass,
-        stellar_luminosity,
-        stellar_temperature,
-        stellar_metallicity,
-        &spectral_type,
-    )
+/// Generate a planetary system from a `MainSequenceStar` with a specific UUID
+///
+/// # Example
+/// ```ignore
+/// use stellar::sample_main_sequence_star;
+/// use planetary::from_star_with_id;
+/// use uuid::Uuid;
+///
+/// let star = sample_main_sequence_star(&mut rng);
+/// let system = from_star_with_id(&star, Uuid::new_v4());
+/// ```
+pub fn from_star_with_id(star: &MainSequenceStar, id: Uuid) -> PlanetarySystem {
+    generate_planetary_system(StellarObject::MainSequence(star.clone()), id)
 }
 
 /// Generate a compact multi-planet system (Kepler-like)
@@ -541,8 +593,7 @@ fn generate_tnos(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
             eccentricity,
             inclination,
             composition,
-            star.luminosity,
-            star.mass,
+            HostStar::new(star.luminosity, star.mass),
             rng,
         );
         tnos.push(planet);
@@ -635,8 +686,7 @@ fn create_planet(
         eccentricity,
         inclination,
         composition,
-        star.luminosity,
-        star.mass,
+        HostStar::new(star.luminosity, star.mass),
         rng,
     )
 }
