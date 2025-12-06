@@ -145,16 +145,19 @@ pub fn generate_system_for_star_named(
 /// Each system gets a unique star sampled from the IMF.
 ///
 /// # Arguments
-/// * `base_seed` - Base seed (each system uses base_seed + index)
+/// * `seed_name` - String seed for reproducible batch generation
 /// * `count` - Number of systems to generate
 ///
 /// # Returns
 /// Array of PlanetarySystem objects
 #[wasm_bindgen(js_name = "generateSystemsBatch")]
 pub fn generate_systems_batch(
-    #[wasm_bindgen(js_name = "baseSeed")] base_seed: u64,
+    #[wasm_bindgen(js_name = "seedName")] seed_name: &str,
     count: u32,
 ) -> Vec<PlanetarySystem> {
+    let base_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, seed_name.as_bytes());
+    let base_seed = u64::from_le_bytes(base_id.as_bytes()[..8].try_into().unwrap());
+
     (0..count)
         .map(|i| {
             let seed = base_seed.wrapping_add(i as u64);
@@ -171,14 +174,16 @@ pub fn generate_systems_batch(
 /// All systems have Sun-like host stars but different planetary configurations.
 ///
 /// # Arguments
+/// * `seed_name` - String seed for reproducible batch generation
 /// * `count` - Number of systems to generate
-/// * `base_seed` - Base seed for reproducibility
 #[wasm_bindgen(js_name = "generateSolarSystemsBatch")]
 pub fn generate_solar_systems_batch(
+    #[wasm_bindgen(js_name = "seedName")] seed_name: &str,
     count: u32,
-    #[wasm_bindgen(js_name = "baseSeed")] base_seed: u64,
 ) -> Vec<PlanetarySystem> {
     let star = solar_analog();
+    let base_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, seed_name.as_bytes());
+    let base_seed = u64::from_le_bytes(base_id.as_bytes()[..8].try_into().unwrap());
 
     (0..count)
         .map(|i| {
