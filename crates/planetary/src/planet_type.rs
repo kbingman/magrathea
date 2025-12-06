@@ -4,7 +4,7 @@
 //! based on temperature, composition, stellar environment, and history.
 //! This is the second tier of the two-tier classification system.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 #[cfg(feature = "tsify")]
 use tsify_next::Tsify;
@@ -59,7 +59,9 @@ fn is_tidally_locked(orbital_period_days: f64, stellar_mass_solar: f64) -> bool 
 /// Each variant represents a distinct observable category determined by
 /// the planet's mass regime (PlanetClass) combined with its temperature,
 /// composition, and stellar environment.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// JSON serialization includes a human-readable `name` field alongside the type tag.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "tsify", derive(Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
@@ -452,9 +454,10 @@ impl PlanetType {
     }
 }
 
-impl std::fmt::Display for PlanetType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let name = match self {
+impl PlanetType {
+    /// Human-readable name for the planet type
+    pub fn name(&self) -> &'static str {
+        match self {
             Self::SubEarth => "Sub-Earth",
             Self::Barren => "Barren",
             Self::Lava { .. } => "Lava World",
@@ -478,7 +481,119 @@ impl std::fmt::Display for PlanetType {
             Self::GasGiant { .. } => "Gas Giant",
             Self::HotJupiter { .. } => "Hot Jupiter",
             Self::PuffySaturn => "Puffy Saturn",
+        }
+    }
+}
+
+impl std::fmt::Display for PlanetType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl Serialize for PlanetType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeMap;
+
+        // Count fields: type + name + description + variant-specific fields
+        let field_count = match self {
+            Self::Lava { .. } => 5, // type, name, description, tidallyLocked, surfaceTempK
+            Self::Frozen { .. } => 4, // type, name, description, hasSubsurfaceOcean
+            Self::Oceanic { .. } => 4, // type, name, description, oceanFraction
+            Self::Terran { .. } => 5, // type, name, description, oceanFraction, tectonicallyActive
+            Self::Eyeball { .. } => 4, // type, name, description, terminatorHabitable
+            Self::MiniNeptune { .. } => 4, // type, name, description, envelopeFraction
+            Self::WaterWorld { .. } => 4, // type, name, description, hasHpIceLayer
+            Self::IceGiant { .. } | Self::GasGiant { .. } => 4, // type, name, description, hasRings
+            Self::HotJupiter { .. } => 5, // type, name, description, equilibriumTempK, evaporating
+            _ => 3,                 // type, name, description only
         };
-        write!(f, "{}", name)
+
+        let mut map = serializer.serialize_map(Some(field_count))?;
+
+        // Add type tag (camelCase variant name)
+        let type_name = match self {
+            Self::SubEarth => "subEarth",
+            Self::Barren => "barren",
+            Self::Lava { .. } => "lava",
+            Self::Desert => "desert",
+            Self::Frozen { .. } => "frozen",
+            Self::Oceanic { .. } => "oceanic",
+            Self::Terran { .. } => "terran",
+            Self::Eyeball { .. } => "eyeball",
+            Self::Carbon => "carbon",
+            Self::Iron => "iron",
+            Self::DwarfPlanet => "dwarfPlanet",
+            Self::KuiperBeltObject => "kuiperBeltObject",
+            Self::SuperTerran => "superTerran",
+            Self::MiniNeptune { .. } => "miniNeptune",
+            Self::WaterWorld { .. } => "waterWorld",
+            Self::Hycean => "hycean",
+            Self::Chthonian => "chthonian",
+            Self::SubNeptune => "subNeptune",
+            Self::WarmNeptune => "warmNeptune",
+            Self::IceGiant { .. } => "iceGiant",
+            Self::GasGiant { .. } => "gasGiant",
+            Self::HotJupiter { .. } => "hotJupiter",
+            Self::PuffySaturn => "puffySaturn",
+        };
+        map.serialize_entry("type", type_name)?;
+
+        // Add human-readable name and description
+        map.serialize_entry("name", self.name())?;
+        map.serialize_entry("description", self.description())?;
+
+        // Add variant-specific fields
+        match self {
+            Self::Lava {
+                tidally_locked,
+                surface_temp_k,
+            } => {
+                map.serialize_entry("tidallyLocked", tidally_locked)?;
+                map.serialize_entry("surfaceTempK", surface_temp_k)?;
+            }
+            Self::Frozen {
+                has_subsurface_ocean,
+            } => {
+                map.serialize_entry("hasSubsurfaceOcean", has_subsurface_ocean)?;
+            }
+            Self::Oceanic { ocean_fraction } => {
+                map.serialize_entry("oceanFraction", ocean_fraction)?;
+            }
+            Self::Terran {
+                ocean_fraction,
+                tectonically_active,
+            } => {
+                map.serialize_entry("oceanFraction", ocean_fraction)?;
+                map.serialize_entry("tectonicallyActive", tectonically_active)?;
+            }
+            Self::Eyeball {
+                terminator_habitable,
+            } => {
+                map.serialize_entry("terminatorHabitable", terminator_habitable)?;
+            }
+            Self::MiniNeptune { envelope_fraction } => {
+                map.serialize_entry("envelopeFraction", envelope_fraction)?;
+            }
+            Self::WaterWorld { has_hp_ice_layer } => {
+                map.serialize_entry("hasHpIceLayer", has_hp_ice_layer)?;
+            }
+            Self::IceGiant { has_rings } | Self::GasGiant { has_rings } => {
+                map.serialize_entry("hasRings", has_rings)?;
+            }
+            Self::HotJupiter {
+                equilibrium_temp_k,
+                evaporating,
+            } => {
+                map.serialize_entry("equilibriumTempK", equilibrium_temp_k)?;
+                map.serialize_entry("evaporating", evaporating)?;
+            }
+            _ => {}
+        }
+
+        map.end()
     }
 }
