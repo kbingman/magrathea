@@ -8,17 +8,28 @@ use rand_chacha::ChaChaRng;
 use planetary::planet_class::PlanetClass;
 
 /// Sample planet mass using occurrence-weighted distribution
+///
+/// This function is used for inner system planets (within snow line) where
+/// planet masses are sampled from Kepler-derived occurrence rates.
+///
+/// For outer system planets (giants, ice giants), use the dedicated functions
+/// in generation.rs which properly account for stellar mass limits.
+///
+/// Note: Jupiter-mass planets (>160 M⊕) are NOT sampled here. Gas giants in the
+/// inner system (Hot Jupiters) form via migration and are handled separately
+/// in generate_giant_system.
 pub fn sample_planet_mass(rng: &mut ChaChaRng, stellar_metallicity: f64) -> f64 {
-    // Metallicity affects giant planet probability: P(giant) ∝ 10^(2×[Fe/H])
+    // Metallicity affects larger planet probability: P(sub-Saturn) ∝ 10^(2×[Fe/H])
     let metallicity_boost = 10.0_f64.powf(2.0 * stellar_metallicity);
 
+    // Inner system mass distribution (Kepler-derived)
+    // No Jupiter bin - those form via core accretion beyond snow line and migrate
     let base_weights = [
-        0.10,                     // Sub-Earth (0.01-0.5 M⊕)
-        0.25,                     // Earth (0.5-2 M⊕)
+        0.15,                     // Sub-Earth (0.01-0.5 M⊕)
+        0.30,                     // Earth (0.5-2 M⊕)
         0.30,                     // Super-Earth/Mini-Neptune (2-10 M⊕)
         0.20,                     // Neptune (10-50 M⊕)
-        0.10 * metallicity_boost, // Sub-Saturn (50-160 M⊕)
-        0.05 * metallicity_boost, // Jupiter (160-1000 M⊕)
+        0.05 * metallicity_boost, // Sub-Saturn (50-160 M⊕) - rare, metallicity-dependent
     ];
 
     let total: f64 = base_weights.iter().sum();

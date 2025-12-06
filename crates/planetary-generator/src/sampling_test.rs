@@ -20,8 +20,19 @@ fn test_mass_sampling() {
         }
     }
 
-    // All classes should be represented
-    for count in &class_counts {
-        assert!(*count > 0);
-    }
+    // Rocky, Transitional, and Volatile should be well-represented
+    // (sample_planet_mass is for inner system planets, so no Jupiter-mass giants)
+    assert!(class_counts[0] > 100, "Rocky planets should be common");
+    assert!(
+        class_counts[1] > 100,
+        "Transitional planets should be common"
+    );
+    assert!(class_counts[2] > 50, "Volatile planets should appear");
+
+    // Giant class should be rare or absent (max mass is 160 M⊕, just at threshold)
+    // The sub-Saturn bin (50-160 M⊕) is Volatile class, not Giant
+    assert!(
+        class_counts[3] < 50,
+        "Giant planets should be rare from inner sampling"
+    );
 }

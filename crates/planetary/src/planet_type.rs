@@ -103,6 +103,16 @@ pub enum PlanetType {
     /// Exposed metallic core (>70% iron, mantle-stripped)
     Iron,
 
+    /// Dwarf planet: large enough for hydrostatic equilibrium but hasn't cleared orbit
+    /// Mass range: ~0.0001-0.01 M⊕ (Ceres to Pluto class)
+    /// Examples: Pluto, Eris, Ceres, Makemake, Haumea
+    DwarfPlanet,
+
+    /// Small Kuiper Belt or scattered disk object
+    /// Mass range: ~0.00001-0.0001 M⊕ (sub-dwarf planet KBOs)
+    /// Examples: Quaoar, Sedna, Orcus, Varuna
+    KuiperBeltObject,
+
     // =========================================================================
     // Transitional expressions (PlanetClass::Transitional, 2-5 M⊕)
     // =========================================================================
@@ -163,7 +173,9 @@ impl PlanetType {
             | Self::Terran { .. }
             | Self::Eyeball { .. }
             | Self::Carbon
-            | Self::Iron => PlanetClass::Rocky,
+            | Self::Iron
+            | Self::DwarfPlanet
+            | Self::KuiperBeltObject => PlanetClass::Rocky,
 
             // Transitional expressions
             Self::SuperTerran
@@ -229,9 +241,30 @@ impl PlanetType {
         stellar_mass: f64,
         semi_major_axis_au: f64,
     ) -> Self {
-        // Check for frozen worlds first - TNOs and other icy bodies
-        // This takes precedence over mass check since frozen dwarf planets
-        // (Pluto, Eris, etc.) are distinct from warm sub-Earths
+        // Check for dwarf planets and KBOs first
+        // These are small, cold, distant objects in the outer system
+        // Dwarf planet threshold: ~0.0001 M⊕ (roughly 400km diameter for icy body)
+        // Upper bound: ~0.01 M⊕ (Pluto/Eris class)
+        //
+        // Distance threshold scales with stellar mass (snow line proxy)
+        // For Sun-like: >10 AU covers asteroid belt through Kuiper belt
+        let distant_threshold_au = 10.0 * stellar_mass.sqrt();
+
+        if mass_earth < 0.01
+            && semi_major_axis_au > distant_threshold_au
+            && t_eq < temperature::FROZEN
+        {
+            // Distinguish dwarf planets from smaller KBOs by mass
+            // Dwarf planet: large enough for hydrostatic equilibrium (~0.0001 M⊕)
+            // KBO: smaller irregular bodies
+            return if mass_earth >= 0.0001 {
+                Self::DwarfPlanet
+            } else {
+                Self::KuiperBeltObject
+            };
+        }
+
+        // Check for frozen worlds (cold but not necessarily distant/small)
         if t_eq < temperature::FROZEN {
             return Self::Frozen {
                 has_subsurface_ocean: composition.water > 0.05,
@@ -359,6 +392,8 @@ impl PlanetType {
             | Self::Eyeball { .. }
             | Self::Carbon
             | Self::Iron
+            | Self::DwarfPlanet
+            | Self::KuiperBeltObject
             | Self::SuperTerran
             | Self::Chthonian => true,
 
@@ -400,6 +435,8 @@ impl PlanetType {
             Self::Eyeball { .. } => "Eyeball: tidally locked, terminator habitability",
             Self::Carbon => "Carbon world: graphite/carbide surface",
             Self::Iron => "Iron world: exposed metallic core",
+            Self::DwarfPlanet => "Dwarf planet: icy body in hydrostatic equilibrium",
+            Self::KuiperBeltObject => "Kuiper Belt object: small icy outer system body",
             Self::SuperTerran => "Super-Terran: massive rocky world",
             Self::MiniNeptune { .. } => "Mini-Neptune: rocky core with H/He envelope",
             Self::WaterWorld { .. } => "Water world: deep global ocean",
@@ -428,6 +465,8 @@ impl std::fmt::Display for PlanetType {
             Self::Eyeball { .. } => "Eyeball",
             Self::Carbon => "Carbon World",
             Self::Iron => "Iron World",
+            Self::DwarfPlanet => "Dwarf Planet",
+            Self::KuiperBeltObject => "KBO",
             Self::SuperTerran => "Super-Terran",
             Self::MiniNeptune { .. } => "Mini-Neptune",
             Self::WaterWorld { .. } => "Water World",

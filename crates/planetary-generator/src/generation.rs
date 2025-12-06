@@ -32,12 +32,15 @@ use crate::sampling::{
 // =============================================================================
 
 /// Base probability for cold giants (1.5-6× snow line) at solar metallicity
-/// From Mayor+ 2011, Cumming+ 2008: ~10-15% of FGK stars
-const COLD_GIANT_BASE_RATE: f64 = 0.15;
+/// From Mayor+ 2011, Cumming+ 2008: ~10-14% of FGK stars
+/// Reduced from 0.15 to avoid double-counting with GiantDominated architecture
+/// After architecture-level giants, ~6% additional cold giant rate gives ~12% total
+const COLD_GIANT_BASE_RATE: f64 = 0.06;
 
 /// Base probability for ice giants (5-15× snow line)
-/// From Cassan+ 2012, Suzuki+ 2016: ~30-40% of systems
-const ICE_GIANT_BASE_RATE: f64 = 0.35;
+/// From Cassan+ 2012, Suzuki+ 2016: ~20-30% of FGK systems
+/// Reduced from 0.35 to account for detection bias in microlensing surveys
+const ICE_GIANT_BASE_RATE: f64 = 0.25;
 
 /// Probability of wide companions (50-300 AU)
 /// From Nielsen+ 2019, Vigan+ 2021: ~1-3% of systems
@@ -45,8 +48,13 @@ const WIDE_COMPANION_RATE: f64 = 0.02;
 
 /// Maximum planet-to-star mass ratio
 /// Prevents unrealistic massive planets around low-mass stars
-/// ~1% is roughly the brown dwarf boundary for M-dwarfs
-const MAX_PLANET_STAR_MASS_RATIO: f64 = 0.01;
+/// ~0.3% is a stricter limit than brown dwarf boundary
+const MAX_PLANET_STAR_MASS_RATIO: f64 = 0.003;
+
+/// Minimum stellar mass for gas giant formation (in solar masses)
+/// Below this mass, disk mass and lifetime are insufficient for giant planet core accretion
+/// Based on Laughlin+ 2004, Ida & Lin 2005
+const MIN_STELLAR_MASS_FOR_GIANTS: f64 = 0.25;
 
 // =============================================================================
 // Stellar Context
@@ -89,13 +97,32 @@ impl StellarContext {
 
     /// Giant planet occurrence scaling factor based on stellar mass
     ///
-    /// Johnson et al. (2010) found giant occurrence scales roughly as M_star^1.0-1.5
-    /// This means M-dwarfs should have ~10× fewer giants than Sun-like stars.
+    /// Johnson et al. (2010) found giant occurrence scales roughly as M_star^1.0-2.0
+    /// We use a steeper exponent (2.0) to better suppress giants around M-dwarfs.
+    ///
+    /// For stars below MIN_STELLAR_MASS_FOR_GIANTS, returns 0 (no gas giants).
     fn giant_occurrence_scaling(&self) -> f64 {
-        // Scale relative to solar mass with exponent ~1.5
-        // For 0.1 M☉ star: 0.1^1.5 = 0.03 (3% of solar rate)
-        // For 0.5 M☉ star: 0.5^1.5 = 0.35 (35% of solar rate)
-        self.mass.powf(1.5)
+        // Hard cutoff for very low mass stars
+        if self.mass < MIN_STELLAR_MASS_FOR_GIANTS {
+            return 0.0;
+        }
+
+        // Scale relative to solar mass with exponent 2.0
+        // For 0.3 M☉ star: 0.3^2.0 = 0.09 (9% of solar rate)
+        // For 0.5 M☉ star: 0.5^2.0 = 0.25 (25% of solar rate)
+        // For 0.8 M☉ star: 0.8^2.0 = 0.64 (64% of solar rate)
+        self.mass.powf(2.0)
+    }
+
+    /// Ice giant occurrence scaling factor based on stellar mass
+    ///
+    /// Ice giants have weaker mass dependence than gas giants since they don't
+    /// require runaway gas accretion. Use M^1.0 scaling.
+    fn ice_giant_occurrence_scaling(&self) -> f64 {
+        // For 0.1 M☉: 0.1 (10% of solar rate)
+        // For 0.3 M☉: 0.3 (30% of solar rate)
+        // For 0.5 M☉: 0.5 (50% of solar rate)
+        self.mass.powf(1.0)
     }
 }
 
@@ -127,7 +154,8 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
     let spectral_type = star.spectral_type_string();
 
     let ctx = StellarContext::new(stellar_mass, stellar_luminosity, stellar_metallicity);
-    let architecture = SystemArchitecture::sample(&mut rng, &spectral_type, stellar_metallicity);
+    let architecture =
+        SystemArchitecture::sample(&mut rng, &spectral_type, stellar_mass, stellar_metallicity);
 
     let planets = match architecture {
         SystemArchitecture::CompactMulti => generate_compact_system(&mut rng, &ctx),
@@ -323,21 +351,32 @@ fn generate_giant_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Plan
     planets
 }
 
-/// Generate a sparse system (0-1 detected planets)
+/// Generate a sparse system (0-2 detected planets)
 ///
-/// These systems either have no detectable planets or just one lonely planet.
-/// ~50% are truly empty (or have only very small/distant planets).
+/// These systems have few detectable planets, typically one lonely planet
+/// in the inner system. Some (~20%) may be truly empty or have only
+/// very small/distant planets below detection thresholds.
 /// May still have outer system planets at reduced rates.
 fn generate_sparse_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
     let mut planets = Vec::new();
 
-    // 50% chance of having an inner planet
-    if rng.random::<f64>() < 0.5 {
+    // 70% chance of having an inner planet
+    // Kepler data suggests truly "empty" systems are relatively rare
+    if rng.random::<f64>() < 0.70 {
         let mass = sample_planet_mass(rng, star.metallicity);
         let class = PlanetClass::from_earth_masses(mass);
         let period = sample_orbital_period(rng, &class);
         let sma = period_to_semi_major_axis(period, star.mass);
         planets.push(create_planet(rng, star, mass, sma));
+
+        // 20% chance of a second inner planet (still "sparse")
+        if rng.random::<f64>() < 0.20 {
+            let mass2 = sample_planet_mass(rng, star.metallicity);
+            let class2 = PlanetClass::from_earth_masses(mass2);
+            let period2 = sample_orbital_period(rng, &class2);
+            let sma2 = period_to_semi_major_axis(period2, star.mass);
+            planets.push(create_planet(rng, star, mass2, sma2));
+        }
     }
 
     // Sparse systems can still have outer planets, but at reduced rates
@@ -427,9 +466,15 @@ fn generate_ice_giants(
     star: &StellarContext,
     probability: f64,
 ) -> Vec<Planet> {
-    // Ice giants have weaker stellar mass dependence than gas giants
-    // Use sqrt scaling (exponent 0.5) instead of 1.5
-    let stellar_scaling = star.mass.powf(0.5);
+    // Ice giants scale with stellar mass (M^1.0) - weaker than gas giants
+    // but still significant suppression for low-mass stars
+    //
+    // Using ice_giant_occurrence_scaling():
+    // - 1.0 M☉: 1.00× base rate
+    // - 0.5 M☉: 0.50× base rate
+    // - 0.3 M☉: 0.30× base rate
+    // - 0.1 M☉: 0.10× base rate
+    let stellar_scaling = star.ice_giant_occurrence_scaling();
     let scaled_prob = probability * stellar_scaling;
 
     if rng.random::<f64>() > scaled_prob {
@@ -518,17 +563,24 @@ fn generate_wide_companion(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
 /// The Kuiper Belt contains thousands of objects, with hundreds likely
 /// qualifying as dwarf planets (> ~400 km diameter).
 ///
-/// Known examples:
+/// Known examples (dwarf planets):
 /// - Pluto: 0.0022 M⊕, 39.5 AU (3:2 resonance with Neptune)
 /// - Eris: 0.0028 M⊕, 68 AU (scattered disk)
 /// - Makemake: 0.0007 M⊕, 45 AU (classical KBO)
 /// - Haumea: 0.0007 M⊕, 43 AU (classical KBO)
+/// - Ceres: 0.00016 M⊕, 2.77 AU (asteroid belt - inner system dwarf planet)
+///
+/// Known examples (large KBOs, sub-dwarf planet):
+/// - Quaoar: 0.00020 M⊕, 43 AU
+/// - Sedna: 0.00015 M⊕, 76 AU (detached)
+/// - Orcus: 0.00011 M⊕, 39 AU
+/// - Varuna: 0.00006 M⊕, 43 AU
 ///
 /// Zone: 30-100 AU (Kuiper Belt and scattered disk)
-/// Mass range: 0.0001-0.01 M⊕ (large TNOs to Pluto-class)
 ///
-/// Occurrence: Very high - most systems likely have TNO populations
-/// We generate 0-3 "major" TNOs per system (detectable dwarf planets)
+/// We generate two populations:
+/// - Major TNOs (dwarf planets): 2-6 per system, mass 0.0001-0.01 M⊕
+/// - Minor TNOs (large KBOs): 3-8 per system, mass 0.00001-0.0001 M⊕
 ///
 /// # References
 /// - Brown (2008) - "The Largest Kuiper Belt Objects"
@@ -536,8 +588,8 @@ fn generate_wide_companion(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
 fn generate_tnos(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
     // TNOs require a stable outer system - giant planets help sculpt the belt
     // but aren't strictly required. Most systems should have some TNOs.
-    // Base probability ~70%, reduced for very low-mass stars (smaller disks)
-    let base_prob = 0.70 * star.mass.sqrt();
+    // Base probability ~80%, reduced for very low-mass stars (smaller disks)
+    let base_prob = 0.80 * star.mass.sqrt();
 
     if rng.random::<f64>() > base_prob {
         return vec![];
@@ -550,55 +602,89 @@ fn generate_tnos(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
     let inner_kb = sl * 10.0;
     let outer_kb = sl * 40.0;
 
-    // Number of major TNOs: 0-3, weighted toward 1-2
-    let n_tnos = match rng.random::<f64>() {
-        x if x < 0.30 => 1,
-        x if x < 0.70 => 2,
-        _ => 3,
+    let mut tnos = Vec::new();
+
+    // Generate major TNOs (dwarf planets): 2-6 per system
+    let n_major = match rng.random::<f64>() {
+        x if x < 0.15 => 2,
+        x if x < 0.40 => 3,
+        x if x < 0.70 => 4,
+        x if x < 0.90 => 5,
+        _ => 6,
     };
 
-    let mut tnos = Vec::with_capacity(n_tnos);
-
-    for _ in 0..n_tnos {
-        // Log-uniform semi-major axis distribution
-        let log_inner = inner_kb.ln();
-        let log_outer = outer_kb.ln();
-        let sma = (log_inner + rng.random::<f64>() * (log_outer - log_inner)).exp();
-
-        // Mass distribution: 0.0001-0.01 M⊕, power law favoring smaller objects
-        // dN/dM ∝ M^(-2) approximately (steep size distribution)
-        let min_mass: f64 = 0.0001; // ~400 km diameter
-        let max_mass: f64 = 0.01; // ~Pluto-class
-        let log_min = min_mass.ln();
-        let log_max = max_mass.ln();
-        let u: f64 = rng.random();
-        let mass = (log_min + u.powf(2.0) * (log_max - log_min)).exp();
-
-        // TNOs have high eccentricities and inclinations from Neptune interactions
-        let eccentricity = rng.random_range(0.05..0.30);
-        let inclination = rng.random_range(0.0..0.5); // Up to ~30 degrees
-
-        // Icy composition for TNOs
-        let composition = Composition::new(
-            0.05 + rng.random::<f64>() * 0.10, // 5-15% iron (small core)
-            0.25 + rng.random::<f64>() * 0.15, // 25-40% rock
-            0.50 + rng.random::<f64>() * 0.20, // 50-70% water ice
-            0.0,                               // No H/He envelope
+    for _ in 0..n_major {
+        let tno = generate_single_tno(
+            rng, star, inner_kb, outer_kb,
+            0.0001, // Min: ~400 km diameter (dwarf planet threshold)
+            0.01,   // Max: Pluto/Eris class
         );
+        tnos.push(tno);
+    }
 
-        let planet = Planet::from_mass(
-            Mass::from_earth_masses(mass),
-            Length::from_au(sma),
-            eccentricity,
-            inclination,
-            composition,
-            HostStar::new(star.luminosity, star.mass),
-            rng,
+    // Generate minor TNOs (large KBOs): 3-8 per system
+    let n_minor = match rng.random::<f64>() {
+        x if x < 0.10 => 3,
+        x if x < 0.30 => 4,
+        x if x < 0.55 => 5,
+        x if x < 0.80 => 6,
+        x if x < 0.95 => 7,
+        _ => 8,
+    };
+
+    for _ in 0..n_minor {
+        let tno = generate_single_tno(
+            rng, star, inner_kb, outer_kb, 0.00001, // Min: ~100 km diameter
+            0.0001,  // Max: just below dwarf planet threshold
         );
-        tnos.push(planet);
+        tnos.push(tno);
     }
 
     tnos
+}
+
+/// Generate a single TNO with given mass range
+fn generate_single_tno(
+    rng: &mut ChaChaRng,
+    star: &StellarContext,
+    inner_au: f64,
+    outer_au: f64,
+    min_mass: f64,
+    max_mass: f64,
+) -> Planet {
+    // Log-uniform semi-major axis distribution
+    let log_inner = inner_au.ln();
+    let log_outer = outer_au.ln();
+    let sma = (log_inner + rng.random::<f64>() * (log_outer - log_inner)).exp();
+
+    // Mass distribution: power law favoring smaller objects
+    // dN/dM ∝ M^(-2) approximately (steep size distribution)
+    let log_min = min_mass.ln();
+    let log_max = max_mass.ln();
+    let u: f64 = rng.random();
+    let mass = (log_min + u.powf(2.0) * (log_max - log_min)).exp();
+
+    // TNOs have high eccentricities and inclinations from Neptune interactions
+    let eccentricity = rng.random_range(0.05..0.30);
+    let inclination = rng.random_range(0.0..0.5); // Up to ~30 degrees
+
+    // Icy composition for TNOs
+    let composition = Composition::new(
+        0.05 + rng.random::<f64>() * 0.10, // 5-15% iron (small core)
+        0.25 + rng.random::<f64>() * 0.15, // 25-40% rock
+        0.50 + rng.random::<f64>() * 0.20, // 50-70% water ice
+        0.0,                               // No H/He envelope
+    );
+
+    Planet::from_mass(
+        Mass::from_earth_masses(mass),
+        Length::from_au(sma),
+        eccentricity,
+        inclination,
+        composition,
+        HostStar::new(star.luminosity, star.mass),
+        rng,
+    )
 }
 
 fn generate_n_spaced_planets(
@@ -671,7 +757,7 @@ fn create_planet(
     mass_earth: f64,
     sma_au: f64,
 ) -> Planet {
-    // Cap planet mass at ~1% of stellar mass to prevent unrealistic planets
+    // Cap planet mass at stellar mass limit to prevent unrealistic planets
     let mass_earth = mass_earth.min(star.max_planet_mass());
     let class = PlanetClass::from_earth_masses(mass_earth);
     let period = (sma_au.powi(3) / star.mass).sqrt() * 365.25;

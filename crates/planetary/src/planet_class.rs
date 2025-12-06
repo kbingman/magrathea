@@ -85,21 +85,46 @@ impl PlanetClass {
     /// Get mass-radius power law parameters for this regime
     ///
     /// Returns (coefficient, exponent, scatter_sigma) where R = coeff * M^exp (Earth units)
+    ///
+    /// Scatter sigma is in log10 space - a value of 0.05 means ~12% variation (10^0.05 ≈ 1.12)
+    ///
+    /// # References
+    /// - Chen & Kipping (2017) for rocky/transitional planets
+    /// - Wolfgang et al. (2016) for volatile planets
+    /// - Thorngren et al. (2016) for giant planets
     pub fn mass_radius_params(&self) -> (f64, f64, f64) {
         match self {
-            Self::Rocky => (1.0, 0.29, 0.5),
-            Self::Transitional => (1.05, 0.40, 0.8),
-            Self::Volatile => (0.895, 0.56, 1.9),
-            Self::Giant => (11.54, -0.024, 0.3),
+            // Rocky: R = M^0.27 for M < 2 M⊕ (Chen & Kipping 2017)
+            // Scatter ~8% (σ_log ≈ 0.035)
+            Self::Rocky => (1.0, 0.27, 0.035),
+            // Transitional: steeper slope as envelope physics matter
+            // Scatter ~15% due to varied envelope fractions
+            Self::Transitional => (1.0, 0.35, 0.06),
+            // Volatile: R ∝ M^0.55 for sub-Neptunes/ice giants
+            // Higher scatter ~20% due to envelope inflation variation
+            Self::Volatile => (1.0, 0.55, 0.08),
+            // Giant: nearly constant radius (electron degeneracy)
+            // R ≈ 11 R⊕ with slight decrease at higher masses
+            // Low scatter ~10% for mature giants
+            Self::Giant => (11.2, 0.01, 0.04),
         }
     }
 
     /// Calculate radius from mass using empirical mass-radius relation
+    ///
+    /// # Arguments
+    /// * `mass_earth` - Planet mass in Earth masses
+    /// * `add_scatter` - Whether to add observational scatter
+    /// * `rng` - Random number generator
+    ///
+    /// # Returns
+    /// Radius in Earth radii
     pub fn radius_from_mass(&self, mass_earth: f64, add_scatter: bool, rng: &mut impl Rng) -> f64 {
         let (coeff, exp, sigma) = self.mass_radius_params();
         let base_radius = coeff * mass_earth.powf(exp);
 
         if add_scatter {
+            // Scatter in log10 space - sigma of 0.05 gives ~12% variation
             let log_scatter = rng.random_range(-sigma..sigma);
             base_radius * 10_f64.powf(log_scatter)
         } else {

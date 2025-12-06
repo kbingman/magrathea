@@ -111,7 +111,15 @@ impl Planet {
 
     /// Create a planet from mass and orbital parameters, calculating radius
     ///
-    /// Uses the appropriate M-R relation based on composition.
+    /// Uses the appropriate M-R relation based on mass class, then adjusts
+    /// for composition:
+    /// - Iron-rich planets are ~20% smaller (Mercury-like)
+    /// - Water-rich planets are ~10-15% larger (lower bulk density)
+    /// - H/He envelopes use a separate layered model
+    ///
+    /// # References
+    /// - Zeng et al. (2016) for composition-dependent M-R relations
+    /// - Lopez & Fortney (2014) for envelope structure
     pub fn from_mass(
         mass: Mass,
         semi_major_axis: Length,
@@ -124,11 +132,30 @@ impl Planet {
         let mass_earth = mass.to_earth_masses();
         let class = PlanetClass::from_earth_masses(mass_earth);
 
-        // Calculate radius - use envelope model if H/He present
+        // Calculate radius based on composition
         let radius_earth = if composition.h_he_gas > 0.01 {
+            // Significant H/He envelope - use layered model
             radius_with_envelope(mass_earth, composition.h_he_gas, rng)
         } else {
-            class.radius_from_mass(mass_earth, true, rng)
+            // Rocky/icy body - use M-R relation with composition adjustment
+            let base_radius = class.radius_from_mass(mass_earth, true, rng);
+
+            // Apply composition-based scaling (Zeng et al. 2016)
+            // Iron-rich (>50% iron): ~15-20% smaller
+            // Water-rich (>30% water): ~10-15% larger
+            // Earth-like: no adjustment
+            let composition_factor = if composition.iron > 0.50 {
+                // Iron-rich world (Mercury-like)
+                0.80 + 0.10 * (1.0 - composition.iron) // 0.80-0.85
+            } else if composition.water > 0.30 {
+                // Water-rich world
+                1.10 + 0.10 * (composition.water - 0.30) / 0.70 // 1.10-1.20
+            } else {
+                // Earth-like rocky composition
+                1.0
+            };
+
+            base_radius * composition_factor
         };
 
         let radius = Length::from_earth_radii(radius_earth);
