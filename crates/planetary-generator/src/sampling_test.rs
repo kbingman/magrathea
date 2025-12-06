@@ -13,7 +13,7 @@ fn test_mass_sampling() {
         let mass = sample_planet_mass(&mut rng, 0.0);
         let class = PlanetClass::from_earth_masses(mass);
         match class {
-            PlanetClass::Rocky => class_counts[0] += 1,
+            PlanetClass::Compact => class_counts[0] += 1,
             PlanetClass::Transitional => class_counts[1] += 1,
             PlanetClass::Volatile => class_counts[2] += 1,
             PlanetClass::Giant => class_counts[3] += 1,

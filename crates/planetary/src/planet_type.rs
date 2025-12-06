@@ -65,7 +65,7 @@ fn is_tidally_locked(orbital_period_days: f64, stellar_mass_solar: f64) -> bool 
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum PlanetType {
     // =========================================================================
-    // Rocky expressions (PlanetClass::Rocky, M < 2 M⊕)
+    // Compact expressions (PlanetClass::Compact, M < 2 M⊕)
     // =========================================================================
     /// M < 0.5 M⊕: Mars/Mercury class, cannot retain atmosphere long-term
     SubEarth,
@@ -163,7 +163,7 @@ impl PlanetType {
     /// Returns the parent PlanetClass for this type
     pub fn class(&self) -> PlanetClass {
         match self {
-            // Rocky expressions
+            // Compact expressions
             Self::SubEarth
             | Self::Barren
             | Self::Lava { .. }
@@ -175,7 +175,7 @@ impl PlanetType {
             | Self::Carbon
             | Self::Iron
             | Self::DwarfPlanet
-            | Self::KuiperBeltObject => PlanetClass::Rocky,
+            | Self::KuiperBeltObject => PlanetClass::Compact,
 
             // Transitional expressions
             Self::SuperTerran
@@ -217,7 +217,7 @@ impl PlanetType {
         semi_major_axis_au: f64,
     ) -> Self {
         match class {
-            PlanetClass::Rocky => Self::determine_rocky(
+            PlanetClass::Compact => Self::determine_rocky(
                 composition,
                 equilibrium_temp,
                 mass_earth,

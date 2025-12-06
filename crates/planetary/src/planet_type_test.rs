@@ -8,7 +8,7 @@ fn test_class_mapping() {
             tectonically_active: true
         }
         .class(),
-        PlanetClass::Rocky
+        PlanetClass::Compact
     );
     assert_eq!(
         PlanetType::MiniNeptune {

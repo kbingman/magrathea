@@ -26,7 +26,7 @@ fn main() {
         let n_rocky = system
             .planets
             .iter()
-            .filter(|p| p.class == PlanetClass::Rocky)
+            .filter(|p| p.class == PlanetClass::Compact)
             .count();
         let n_transitional = system
             .planets

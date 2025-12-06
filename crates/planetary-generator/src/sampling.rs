@@ -66,7 +66,7 @@ fn sample_mass_in_bin(rng: &mut ChaChaRng, bin: usize) -> f64 {
 /// Sample orbital period in days
 pub fn sample_orbital_period(rng: &mut ChaChaRng, planet_class: &PlanetClass) -> f64 {
     match planet_class {
-        PlanetClass::Rocky | PlanetClass::Transitional => {
+        PlanetClass::Compact | PlanetClass::Transitional => {
             let weights = [0.15, 0.30, 0.30, 0.15, 0.10];
             let bins = [
                 (1.0, 10.0),
@@ -142,7 +142,7 @@ pub fn sample_eccentricity(
     };
 
     let (mean, sigma) = match planet_class {
-        PlanetClass::Rocky => (0.05, 0.03),
+        PlanetClass::Compact => (0.05, 0.03),
         PlanetClass::Transitional => (0.08, 0.05),
         PlanetClass::Volatile => (0.10, 0.08),
         PlanetClass::Giant => (0.15, 0.12),

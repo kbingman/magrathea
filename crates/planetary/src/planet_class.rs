@@ -16,7 +16,7 @@ use tsify_next::Tsify;
 ///
 /// | Class        | Mass Range        | Physical Regime           | Radius Behavior              |
 /// |--------------|-------------------|---------------------------|------------------------------|
-/// | Rocky        | < 2 M⊕            | Self-compression          | R ∝ M^0.29, ρ increases      |
+/// | Compact      | < 2 M⊕            | Self-compression          | R ∝ M^0.29, ρ increases      |
 /// | Transitional | 2-5 M⊕            | Thin envelope regime      | R ∝ M^0.40, variable ρ       |
 /// | Volatile     | 5-160 M⊕          | Thick envelope regime     | R ∝ M^0.56, ρ decreases      |
 /// | Giant        | > 160 M⊕ (~0.5 Mj)| Electron degeneracy       | R nearly constant, ρ ∝ M     |
@@ -29,10 +29,10 @@ use tsify_next::Tsify;
 #[cfg_attr(feature = "tsify", derive(Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum PlanetClass {
-    /// Rocky planets (< 2 M⊕)
+    /// Compact planets (< 2 M⊕)
     /// Self-compression dominated, cannot retain H/He envelopes
     /// Examples: Earth, Mars, Venus, rocky exoplanets
-    Rocky,
+    Compact,
 
     /// Transitional planets (2-5 M⊕)
     /// Thin H/He envelopes (1-10% by mass), super-Earths and mini-Neptunes
@@ -53,8 +53,8 @@ pub enum PlanetClass {
 }
 
 impl PlanetClass {
-    /// Mass threshold between Rocky and Transitional regimes (2 Earth masses)
-    pub const ROCKY_TRANSITIONAL_THRESHOLD: f64 = 2.0;
+    /// Mass threshold between Compact and Transitional regimes (2 Earth masses)
+    pub const COMPACT_TRANSITIONAL_THRESHOLD: f64 = 2.0;
 
     /// Mass threshold between Transitional and Volatile regimes (5 Earth masses)
     pub const TRANSITIONAL_VOLATILE_THRESHOLD: f64 = 5.0;
@@ -65,7 +65,7 @@ impl PlanetClass {
     /// Classify a planet by its mass in Earth masses
     pub fn from_earth_masses(mass_earth: f64) -> Self {
         match mass_earth {
-            m if m < Self::ROCKY_TRANSITIONAL_THRESHOLD => Self::Rocky,
+            m if m < Self::COMPACT_TRANSITIONAL_THRESHOLD => Self::Compact,
             m if m < Self::TRANSITIONAL_VOLATILE_THRESHOLD => Self::Transitional,
             m if m < Self::VOLATILE_GIANT_THRESHOLD => Self::Volatile,
             _ => Self::Giant,
@@ -75,7 +75,7 @@ impl PlanetClass {
     /// Human-readable name for the planet class
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Rocky => "Rocky",
+            Self::Compact => "Compact",
             Self::Transitional => "Transitional",
             Self::Volatile => "Volatile",
             Self::Giant => "Giant",
@@ -94,9 +94,9 @@ impl PlanetClass {
     /// - Thorngren et al. (2016) for giant planets
     pub fn mass_radius_params(&self) -> (f64, f64, f64) {
         match self {
-            // Rocky: R = M^0.27 for M < 2 M⊕ (Chen & Kipping 2017)
+            // Compact: R = M^0.27 for M < 2 M⊕ (Chen & Kipping 2017)
             // Scatter ~8% (σ_log ≈ 0.035)
-            Self::Rocky => (1.0, 0.27, 0.035),
+            Self::Compact => (1.0, 0.27, 0.035),
             // Transitional: steeper slope as envelope physics matter
             // Scatter ~15% due to varied envelope fractions
             Self::Transitional => (1.0, 0.35, 0.06),
@@ -135,9 +135,9 @@ impl PlanetClass {
     /// Returns the mass range for this class in Earth masses
     pub fn mass_range(&self) -> (f64, f64) {
         match self {
-            Self::Rocky => (0.0, Self::ROCKY_TRANSITIONAL_THRESHOLD),
+            Self::Compact => (0.0, Self::COMPACT_TRANSITIONAL_THRESHOLD),
             Self::Transitional => (
-                Self::ROCKY_TRANSITIONAL_THRESHOLD,
+                Self::COMPACT_TRANSITIONAL_THRESHOLD,
                 Self::TRANSITIONAL_VOLATILE_THRESHOLD,
             ),
             Self::Volatile => (

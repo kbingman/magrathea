@@ -786,7 +786,7 @@ fn sample_composition(
     let beyond_snow_line = sma_au > sl;
 
     match class {
-        PlanetClass::Rocky => {
+        PlanetClass::Compact => {
             // Rare iron-rich (mantle-stripped) worlds: ~5% chance
             if rng.random::<f64>() < 0.05 {
                 return Composition::new(

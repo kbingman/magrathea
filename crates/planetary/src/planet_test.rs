@@ -14,7 +14,7 @@ use rand::SeedableRng;
 #[test]
 fn test_earth() {
     let e = earth_analog();
-    assert_eq!(e.class, PlanetClass::Rocky);
+    assert_eq!(e.class, PlanetClass::Compact);
     assert!(matches!(
         e.planet_type,
         PlanetType::Terran { .. } | PlanetType::Desert
