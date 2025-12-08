@@ -51,18 +51,13 @@ export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
             background: color,
           }}
         />
-        {planets.map(
-          ({ inclination, mass, semiMajorAxis, planetType }, index) => (
-            <PlanetCard
-              key={`${id}-planet-${index}`}
-              semiMajorAxis={semiMajorAxis}
-              mass={mass}
-              maxWidth={maxWidth}
-              inclination={inclination}
-              planetType={planetType}
-            />
-          )
-        )}
+        {planets.map((planet, index) => (
+          <PlanetCard
+            key={`${id}-planet-${index}`}
+            planet={planet}
+            maxWidth={maxWidth}
+          />
+        ))}
       </div>
       {showInfo && (
         <div className="absolute -top-2 left-24 bg-neutral-950 text-xs p-2 border-amber-900 border z-10 w-48">

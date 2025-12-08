@@ -1,19 +1,19 @@
-import type { PlanetType } from "@magrathea/planetary-wasm";
+import type { Planet } from "@magrathea/planetary-wasm";
 import {
   scaleSemiMajorAxis,
   scaleUnifiedMass,
 } from "../../../canvas/src/scale";
 import { toEarthMasses } from "../utils/units";
+import { getPlanetColor } from "../utils/planet-colors";
 
 type Props = {
-  inclination: number;
-  mass: number;
+  planet: Planet;
   maxWidth: number;
-  planetType: PlanetType;
-  semiMajorAxis: number;
 };
 
-export function PlanetCard({ mass, semiMajorAxis, maxWidth }: Props) {
+export function PlanetCard({ planet, maxWidth }: Props) {
+  const { mass, semiMajorAxis, class: planetClass, planetType } = planet;
+
   const left = Math.round(
     scaleSemiMajorAxis(semiMajorAxis, {
       maxOutput: maxWidth,
@@ -28,17 +28,17 @@ export function PlanetCard({ mass, semiMajorAxis, maxWidth }: Props) {
   );
 
   const top = radius / 2;
-  // planetType.type === "kuiperBeltObject" ? 8 * inclination - 16 : radius / 2;
+  const colorClass = getPlanetColor(planet);
 
   return (
     <div
-      className="bg-white rounded-full absolute"
+      className={`rounded-full absolute ${colorClass}`}
+      title={`${planetClass} - ${planetType.name}`}
       style={{
         width: `${radius}px`,
         height: `${radius}px`,
         left: `${left}px`,
         top: `-${top}px`,
-        background: "white",
       }}
     />
   );
