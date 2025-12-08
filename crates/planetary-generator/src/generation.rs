@@ -98,7 +98,12 @@ impl StellarContext {
     /// Giant planet occurrence scaling factor based on stellar mass
     ///
     /// Johnson et al. (2010) found giant occurrence scales roughly as M_star^1.0-2.0
-    /// We use a steeper exponent (2.0) to better suppress giants around M-dwarfs.
+    /// We use different scaling regimes:
+    /// - Low mass (< 0.25 M☉): No giants (core accretion timescale > disk lifetime)
+    /// - M-dwarfs (0.25-0.5 M☉): Steep suppression (M^2.0) due to small disk mass
+    /// - K-dwarfs (0.5-0.9 M☉): Linear scaling (M^1.0)
+    /// - G-dwarfs (0.9-1.2 M☉): Smooth transition to baseline
+    /// - F/A stars (> 1.2 M☉): Enhanced rate (M^1.5) due to massive disks
     ///
     /// For stars below MIN_STELLAR_MASS_FOR_GIANTS, returns 0 (no gas giants).
     fn giant_occurrence_scaling(&self) -> f64 {
@@ -107,11 +112,32 @@ impl StellarContext {
             return 0.0;
         }
 
-        // Scale relative to solar mass with exponent 2.0
-        // For 0.3 M☉ star: 0.3^2.0 = 0.09 (9% of solar rate)
-        // For 0.5 M☉ star: 0.5^2.0 = 0.25 (25% of solar rate)
-        // For 0.8 M☉ star: 0.8^2.0 = 0.64 (64% of solar rate)
-        self.mass.powf(2.0)
+        // Piecewise scaling with different exponents
+        if self.mass < 0.5 {
+            // M-dwarfs: steep suppression
+            // For 0.3 M☉: 0.3^2.0 = 0.09 (9% of solar rate)
+            // For 0.5 M☉: 0.5^2.0 = 0.25 (25% of solar rate)
+            self.mass.powf(2.0)
+        } else if self.mass < 0.9 {
+            // K-dwarfs: linear scaling M^1.0
+            // Transition from 0.25 at 0.5 M☉ to ~0.9 at 0.9 M☉
+            // For 0.6 M☉: 0.6 (60% of solar rate)
+            // For 0.8 M☉: 0.8 (80% of solar rate)
+            self.mass.powf(1.0)
+        } else if self.mass < 1.2 {
+            // G-dwarfs: smooth transition to baseline
+            // Interpolate between 0.9 at 0.9 M☉ and 1.0 at 1.0 M☉
+            let low = 0.9;
+            let high = 1.0;
+            let t = (self.mass - 0.9) / 0.3; // 0 at 0.9, 0.33 at 1.0, 1.0 at 1.2
+            low + t * (high - low)
+        } else {
+            // F/A stars: enhanced occurrence due to massive disks and longer timescales
+            // For 1.3 M☉: 1.3^1.5 = 1.48 (48% boost)
+            // For 1.5 M☉: 1.5^1.5 = 1.84 (84% boost)
+            // For 2.0 M☉: 2.0^1.5 = 2.83 (183% boost)
+            self.mass.powf(1.5)
+        }
     }
 
     /// Ice giant occurrence scaling factor based on stellar mass
