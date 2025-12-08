@@ -32,6 +32,7 @@ pub enum GenerationMethod {
 /// - A unique identifier (UUID) that also serves as the RNG seed source
 /// - How the system was generated
 /// - The system's architectural classification
+/// - A catalog designation (e.g., "KV-4729") derived from the UUID
 /// - An optional proper name for notable "hero" systems
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,12 +51,31 @@ pub struct SystemMetadata {
     /// System architecture classification
     pub architecture: SystemArchitecture,
 
+    /// Short catalog designation (e.g., "KV-4729", "AN-0821")
+    ///
+    /// Format: Two uppercase letters + 4 digits, derived deterministically from the UUID.
+    /// Provides ~6.76 million unique combinations (26² × 10000).
+    pub catalog_name: String,
+
     /// Optional proper name for "hero" systems (e.g., "New Eden", "Cygnus Prime")
     ///
-    /// Most systems use only the auto-generated `catalog_name()` (e.g., "KV-4729").
+    /// Most systems use only the auto-generated `catalog_name` (e.g., "KV-4729").
     /// This field is for notable systems that deserve memorable names.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+}
+
+/// Generate a catalog designation from a UUID
+///
+/// Format: Two uppercase letters + 4 digits (e.g., "KV-4729", "AN-0821")
+/// Deterministic - same UUID always produces same designation.
+/// Provides ~6.76 million unique combinations (26² × 10000).
+fn catalog_name_from_uuid(id: &Uuid) -> String {
+    let bytes = id.as_bytes();
+    let prefix1 = (bytes[0] % 26 + b'A') as char;
+    let prefix2 = (bytes[1] % 26 + b'A') as char;
+    let number = u16::from_le_bytes([bytes[2], bytes[3]]) % 10000;
+    format!("{}{}-{:04}", prefix1, prefix2, number)
 }
 
 impl SystemMetadata {
@@ -79,33 +99,6 @@ impl SystemMetadata {
         self.id.as_u64_pair().0
     }
 
-    /// Generate a short catalog designation from the UUID
-    ///
-    /// Format: Two uppercase letters + 4 digits (e.g., "KV-4729", "AN-0821")
-    /// Deterministic - same UUID always produces same designation.
-    /// Provides ~6.76 million unique combinations (26² × 10000).
-    ///
-    /// # Example
-    /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
-    ///
-    /// let meta = SystemMetadata::new_random(
-    ///     GenerationMethod::Statistical,
-    ///     SystemArchitecture::Mixed,
-    /// );
-    /// let name = meta.catalog_name();
-    /// // e.g., "KV-4729"
-    /// assert_eq!(name.len(), 7);
-    /// assert!(name.contains('-'));
-    /// ```
-    pub fn catalog_name(&self) -> String {
-        let bytes = self.id.as_bytes();
-        let prefix1 = (bytes[0] % 26 + b'A') as char;
-        let prefix2 = (bytes[1] % 26 + b'A') as char;
-        let number = u16::from_le_bytes([bytes[2], bytes[3]]) % 10000;
-        format!("{}{}-{:04}", prefix1, prefix2, number)
-    }
-
     /// Returns the display name: proper name if set, otherwise catalog name
     ///
     /// # Example
@@ -117,14 +110,16 @@ impl SystemMetadata {
     ///     GenerationMethod::Statistical,
     ///     SystemArchitecture::Mixed,
     /// );
-    /// assert_eq!(meta.display_name(), meta.catalog_name());
+    /// assert_eq!(meta.display_name(), meta.catalog_name);
     ///
     /// // With proper name
     /// let meta = meta.with_name("Cygnus Prime");
     /// assert_eq!(meta.display_name(), "Cygnus Prime");
     /// ```
     pub fn display_name(&self) -> String {
-        self.name.clone().unwrap_or_else(|| self.catalog_name())
+        self.name
+            .clone()
+            .unwrap_or_else(|| self.catalog_name.clone())
     }
 
     /// Create metadata with a random UUID
@@ -142,8 +137,10 @@ impl SystemMetadata {
         generation_method: GenerationMethod,
         architecture: SystemArchitecture,
     ) -> Self {
+        let id = Uuid::new_v4();
         Self {
-            id: Uuid::new_v4(),
+            catalog_name: catalog_name_from_uuid(&id),
+            id,
             generation_method,
             architecture,
             name: None,
@@ -160,6 +157,7 @@ impl SystemMetadata {
         architecture: SystemArchitecture,
     ) -> Self {
         Self {
+            catalog_name: catalog_name_from_uuid(&id),
             id,
             generation_method,
             architecture,
@@ -197,8 +195,10 @@ impl SystemMetadata {
         generation_method: GenerationMethod,
         architecture: SystemArchitecture,
     ) -> Self {
+        let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, seed_name.as_bytes());
         Self {
-            id: Uuid::new_v5(&Uuid::NAMESPACE_OID, seed_name.as_bytes()),
+            catalog_name: catalog_name_from_uuid(&id),
+            id,
             generation_method,
             architecture,
             name: None,

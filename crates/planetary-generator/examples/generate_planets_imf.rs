@@ -27,7 +27,7 @@ fn main() {
             println!(
                 "{},{},{},{},{:.4},{:.4},{:.4},{:.4},{:.4},{:.2},{:.0},{},{}",
                 system_id,
-                system.metadata.catalog_name(),
+                system.metadata.catalog_name,
                 planet_idx,
                 system.spectral_type(),
                 system.effective_mass(),

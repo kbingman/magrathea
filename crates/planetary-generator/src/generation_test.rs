@@ -72,7 +72,7 @@ fn print_sample_systems() {
         println!(
             "System {} [{}] ({:?}, {} planets):",
             i + 1,
-            system.metadata.catalog_name(),
+            system.metadata.catalog_name,
             system.architecture(),
             system.planets.len()
         );

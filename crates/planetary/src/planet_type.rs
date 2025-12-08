@@ -137,7 +137,7 @@ pub enum PlanetType {
     // Volatile expressions (PlanetClass::Volatile, 5-160 M⊕)
     // =========================================================================
     /// Warm, close-in, puffy hydrogen-dominated
-    SubNeptune,
+    HotNeptune,
 
     /// Intermediate distance, transitional cloud layers
     WarmNeptune,
@@ -187,7 +187,7 @@ impl PlanetType {
             | Self::Chthonian => PlanetClass::Transitional,
 
             // Volatile expressions
-            Self::SubNeptune | Self::WarmNeptune | Self::IceGiant { .. } => PlanetClass::Volatile,
+            Self::HotNeptune | Self::WarmNeptune | Self::IceGiant { .. } => PlanetClass::Volatile,
 
             // Giant expressions
             Self::GasGiant { .. } | Self::HotJupiter { .. } | Self::PuffySaturn => {
@@ -363,7 +363,7 @@ impl PlanetType {
         }
 
         match t_eq {
-            t if t > 400.0 => Self::SubNeptune,
+            t if t > 400.0 => Self::HotNeptune,
             t if t > 150.0 => Self::WarmNeptune,
             _ => Self::IceGiant { has_rings: false },
         }
@@ -402,7 +402,7 @@ impl PlanetType {
             Self::Oceanic { .. } | Self::WaterWorld { .. } | Self::Hycean => false, // Surface is liquid
 
             Self::MiniNeptune { .. }
-            | Self::SubNeptune
+            | Self::HotNeptune
             | Self::WarmNeptune
             | Self::IceGiant { .. }
             | Self::GasGiant { .. }
@@ -444,7 +444,7 @@ impl PlanetType {
             Self::WaterWorld { .. } => "Water world: deep global ocean",
             Self::Hycean => "Hycean: ocean under hydrogen atmosphere",
             Self::Chthonian => "Chthonian: stripped gas giant core",
-            Self::SubNeptune => "Sub-Neptune: warm, puffy, hydrogen-rich",
+            Self::HotNeptune => "Hot Neptune: warm, puffy, hydrogen-rich",
             Self::WarmNeptune => "Warm Neptune: intermediate temperature",
             Self::IceGiant { .. } => "Ice giant: cold, methane clouds",
             Self::GasGiant { .. } => "Gas giant: Jupiter-like, banded clouds",
@@ -475,7 +475,7 @@ impl PlanetType {
             Self::WaterWorld { .. } => "Water World",
             Self::Hycean => "Hycean",
             Self::Chthonian => "Chthonian",
-            Self::SubNeptune => "Sub-Neptune",
+            Self::HotNeptune => "Hot Neptune",
             Self::WarmNeptune => "Warm Neptune",
             Self::IceGiant { .. } => "Ice Giant",
             Self::GasGiant { .. } => "Gas Giant",
@@ -533,7 +533,7 @@ impl Serialize for PlanetType {
             Self::WaterWorld { .. } => "waterWorld",
             Self::Hycean => "hycean",
             Self::Chthonian => "chthonian",
-            Self::SubNeptune => "subNeptune",
+            Self::HotNeptune => "hotNeptune",
             Self::WarmNeptune => "warmNeptune",
             Self::IceGiant { .. } => "iceGiant",
             Self::GasGiant { .. } => "gasGiant",

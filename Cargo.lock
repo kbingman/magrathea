@@ -200,6 +200,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "serde",
+ "serde_json",
  "tsify-next",
  "units",
  "wasm-bindgen",

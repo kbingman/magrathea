@@ -60,7 +60,7 @@ fn main() {
         println!(
             "{},{},{},{:.4},{:.6},{:.0},{:.3},{},{},{},{},{},{},{},{:.4},{:.4}",
             i,
-            system.metadata.catalog_name(),
+            system.metadata.catalog_name,
             system.spectral_type(),
             system.effective_mass(),
             system.total_luminosity(),

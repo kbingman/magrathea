@@ -164,7 +164,9 @@ pub fn generate_systems_batch(
             let mut rng = ChaChaRng::seed_from_u64(seed);
             let star = sample_main_sequence_star(&mut rng);
 
-            from_star(&star)
+            // Create deterministic UUID from seed for reproducibility
+            let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, &seed.to_le_bytes());
+            from_star_with_id(&star, id)
         })
         .collect()
 }

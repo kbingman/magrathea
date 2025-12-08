@@ -3,14 +3,25 @@ use crate::{GenerationMethod, SystemArchitecture, SystemMetadata};
 #[test]
 fn test_catalog_name_format() {
     let meta = SystemMetadata::new_random(GenerationMethod::Statistical, SystemArchitecture::Mixed);
-    let name = meta.catalog_name();
 
     // Format: XX-0000
-    assert_eq!(name.len(), 7);
-    assert!(name.chars().nth(0).unwrap().is_ascii_uppercase());
-    assert!(name.chars().nth(1).unwrap().is_ascii_uppercase());
-    assert_eq!(name.chars().nth(2).unwrap(), '-');
-    assert!(name[3..].chars().all(|c| c.is_ascii_digit()));
+    assert_eq!(meta.catalog_name.len(), 7);
+    assert!(
+        meta.catalog_name
+            .chars()
+            .nth(0)
+            .unwrap()
+            .is_ascii_uppercase()
+    );
+    assert!(
+        meta.catalog_name
+            .chars()
+            .nth(1)
+            .unwrap()
+            .is_ascii_uppercase()
+    );
+    assert_eq!(meta.catalog_name.chars().nth(2).unwrap(), '-');
+    assert!(meta.catalog_name[3..].chars().all(|c| c.is_ascii_digit()));
 }
 
 #[test]
@@ -26,7 +37,7 @@ fn test_catalog_name_deterministic() {
         SystemArchitecture::Mixed,
     );
 
-    assert_eq!(meta1.catalog_name(), meta2.catalog_name());
+    assert_eq!(meta1.catalog_name, meta2.catalog_name);
 }
 
 #[test]
@@ -48,7 +59,7 @@ fn test_seed_deterministic() {
 #[test]
 fn test_display_name_without_proper_name() {
     let meta = SystemMetadata::new_random(GenerationMethod::Statistical, SystemArchitecture::Mixed);
-    assert_eq!(meta.display_name(), meta.catalog_name());
+    assert_eq!(meta.display_name(), meta.catalog_name);
 }
 
 #[test]
@@ -57,7 +68,7 @@ fn test_display_name_with_proper_name() {
         .with_name("Cygnus Prime");
     assert_eq!(meta.display_name(), "Cygnus Prime");
     // Catalog name still available
-    assert_ne!(meta.catalog_name(), "Cygnus Prime");
+    assert_ne!(meta.catalog_name, "Cygnus Prime");
 }
 
 #[test]
@@ -73,5 +84,5 @@ fn test_different_seeds_different_names() {
         SystemArchitecture::Mixed,
     );
 
-    assert_ne!(meta1.catalog_name(), meta2.catalog_name());
+    assert_ne!(meta1.catalog_name, meta2.catalog_name);
 }

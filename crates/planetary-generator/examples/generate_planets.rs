@@ -24,7 +24,7 @@ fn main() {
             println!(
                 "{},{},{},{:.4},{:.4},{:.4},{:.4},{:.2},{:.0},{},{}",
                 system_id,
-                system.metadata.catalog_name(),
+                system.metadata.catalog_name,
                 planet_idx,
                 planet.mass.to_earth_masses(),
                 planet.radius.to_earth_radii(),
