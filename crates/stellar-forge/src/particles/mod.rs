@@ -35,6 +35,7 @@
 //! turbulence). The Smoluchowski equation governs the evolution.
 
 mod coagulation;
+mod collision_outcome;
 mod particle;
 mod particle_bin;
 mod size_distribution;
@@ -49,6 +50,7 @@ mod particle_test;
 mod size_distribution_test;
 
 pub use coagulation::Coagulation;
+pub use collision_outcome::{CollisionOutcome, MaterialProperties};
 pub use particle::{DragRegime, Particle};
 pub use particle_bin::ParticleBin;
 pub use size_distribution::SizeDistribution;
