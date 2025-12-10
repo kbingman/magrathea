@@ -7,3 +7,4 @@ edition = "2024"
 nalgebra = "0.34.1"
 
 units = { path = "../units" }
+stellar = { path = "../stellar" }
