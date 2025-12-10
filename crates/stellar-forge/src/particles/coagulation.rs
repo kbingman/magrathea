@@ -1,39 +1,72 @@
-//! Particle coagulation (sticking) for dust growth.
+//! Particle coagulation with realistic collision outcomes.
 //!
-//! Models the growth of dust particles through collisions. When particles
-//! collide at low velocities, they stick together forming larger aggregates.
+//! Models the evolution of dust particle size distributions through collisions.
+//! Unlike simple sticking models, this includes velocity-dependent outcomes:
+//! sticking, bouncing, fragmentation, and erosion.
 //!
 //! # Physics
 //!
-//! The evolution of the size distribution follows the Smoluchowski equation:
+//! The evolution follows the Smoluchowski equation with outcome-dependent terms:
 //!
 //! ```text
-//! dm_k/dt = (1/2) Σ_{i+j→k} K_ij × n_i × n_j × m_k
-//!         - m_k × Σ_j K_kj × n_j
+//! dm_k/dt = Σ_{i,j} K_ij × n_i × n_j × [gains from collisions]
+//!         - m_k × Σ_j K_kj × n_j × [losses from collisions]
 //! ```
 //!
-//! where K_ij is the collision kernel between size bins i and j.
-//!
-//! The collision kernel has the form:
+//! The collision kernel is:
 //!
 //! ```text
 //! K_ij = π(s_i + s_j)² × Δv_ij
 //! ```
 //!
-//! where Δv_ij is the relative velocity between particles of sizes s_i and s_j.
+//! Collision outcomes depend on impact velocity:
+//! - **Low velocity** (< v_bounce): Perfect or partial sticking
+//! - **Intermediate** (v_bounce < v < v_frag): Bouncing barrier
+//! - **High velocity** (> v_frag): Fragmentation
+//!
+//! This produces emergent barriers to growth:
+//! - **Bouncing barrier**: Growth stalls where velocities exceed sticking threshold
+//! - **Fragmentation barrier**: Maximum size limited by destructive collisions
 //!
 //! # References
 //!
 //! - Smoluchowski (1916) - Original coagulation equation
-//! - Brauer et al. (2008) - Dust coagulation in protoplanetary disks
-//! - Birnstiel et al. (2010) - Gas and dust evolution in disks
+//! - Güttler et al. (2010) - Laboratory collision experiments
+//! - Windmark et al. (2012) - Bouncing and fragmentation barriers
+//! - Birnstiel et al. (2012) - Fragmentation-limited dust evolution
 
 use std::f64::consts::PI;
 
+use rand_chacha::ChaChaRng;
 use units::{Length, Time};
 
 use crate::disk::DiskModel;
-use crate::particles::{ParticleBin, SizeDistribution};
+use crate::particles::{CollisionOutcome, MaterialProperties, ParticleBin, SizeDistribution};
+
+/// Parameters for coagulation evolution.
+///
+/// Groups related parameters for size distribution evolution to avoid
+/// excessive function arguments.
+pub struct EvolutionParams<'a, D: DiskModel> {
+    /// Surface density of particles (g/cm²)
+    pub surface_density: f64,
+    /// Vertical scale height of particle layer (cm)
+    pub scale_height: f64,
+    /// Particle bin for computing relative velocities
+    pub particle_bin: &'a ParticleBin,
+    /// Gas disk model
+    pub disk: &'a D,
+}
+
+/// Parameters for fragment redistribution (internal helper).
+struct FragmentParams {
+    total_mass: f64,
+    max_size: f64,
+    power_law_exponent: f64,
+    scale_height: f64,
+    sqrt_2pi: f64,
+    surface_density: f64,
+}
 
 /// Collision kernel calculator for particle coagulation.
 ///
@@ -303,6 +336,333 @@ impl Coagulation {
             bin_edges,
             mass_per_bin: new_mass,
             material_density,
+        }
+    }
+
+    /// Evolve the size distribution with realistic collision outcomes.
+    ///
+    /// Unlike `evolve_sticking`, this method samples collision outcomes
+    /// based on impact velocity and material properties. Collisions can
+    /// result in sticking, bouncing, or fragmentation.
+    ///
+    /// # Arguments
+    /// * `dist` - Size distribution to evolve (must be Binned)
+    /// * `params` - Evolution parameters (surface density, scale height, disk model)
+    /// * `material` - Material properties for collision outcomes
+    /// * `dt` - Time step
+    /// * `rng` - Random number generator
+    ///
+    /// # Returns
+    /// New size distribution after collisions, with conserved total mass.
+    pub fn evolve_with_outcomes<D: DiskModel>(
+        &self,
+        dist: &SizeDistribution,
+        params: &EvolutionParams<D>,
+        material: &MaterialProperties,
+        dt: Time,
+        rng: &mut ChaChaRng,
+    ) -> SizeDistribution {
+        let dt_s = dt.to_seconds();
+
+        // Extract current state
+        let (bin_edges, mass_per_bin, material_density) = match dist {
+            SizeDistribution::Binned {
+                bin_edges,
+                mass_per_bin,
+                material_density,
+            } => (bin_edges.clone(), mass_per_bin.clone(), *material_density),
+            _ => panic!("evolve_with_outcomes requires a Binned distribution"),
+        };
+
+        let n = self.n_bins;
+
+        // Total mass and mass fractions
+        let total_mass: f64 = mass_per_bin.iter().sum();
+        if total_mass == 0.0 {
+            return dist.clone();
+        }
+
+        let mass_fraction: Vec<f64> = mass_per_bin.iter().map(|m| m / total_mass).collect();
+
+        // Number density per unit volume at midplane
+        let sqrt_2pi = (2.0 * PI).sqrt();
+        let number_density: Vec<f64> = (0..n)
+            .map(|i| {
+                let s = self.bin_sizes[i];
+                let m_particle = (4.0 / 3.0) * PI * material_density * s.powi(3);
+                let sigma_i = params.surface_density * mass_fraction[i];
+                sigma_i / (sqrt_2pi * params.scale_height * m_particle)
+            })
+            .collect();
+
+        // Track mass changes per bin
+        let mut fraction_change = vec![0.0; n];
+
+        for i in 0..n {
+            for j in i..n {
+                let n_i = number_density[i];
+                let n_j = number_density[j];
+
+                if n_i == 0.0 || n_j == 0.0 {
+                    continue;
+                }
+
+                // Collision rate per unit volume
+                let symmetry_factor = if i == j { 0.5 } else { 1.0 };
+                let collision_rate = symmetry_factor * self.kernel[i][j] * n_i * n_j;
+
+                // Particle masses and sizes
+                let s_i = self.bin_sizes[i];
+                let s_j = self.bin_sizes[j];
+                let m_i = (4.0 / 3.0) * PI * material_density * s_i.powi(3);
+                let m_j = (4.0 / 3.0) * PI * material_density * s_j.powi(3);
+
+                // Relative velocity for outcome determination
+                let v_rel = params.particle_bin.relative_velocity(
+                    params.disk,
+                    Length::from_cm(s_i),
+                    Length::from_cm(s_j),
+                );
+
+                // Size ratio (larger / smaller)
+                let size_ratio = s_j.max(s_i) / s_j.min(s_i);
+
+                // Sample collision outcome
+                let outcome = CollisionOutcome::sample(v_rel, size_ratio, material, rng);
+
+                // Number of collisions per unit volume
+                let collisions_per_vol = collision_rate * dt_s;
+
+                // Process outcome
+                match outcome {
+                    CollisionOutcome::PerfectSticking => {
+                        // Combine masses fully
+                        let m_combined = m_i + m_j;
+                        let s_combined = self.combined_size(s_i, s_j);
+                        let k = self.find_bin(s_combined);
+
+                        let loss_i = collisions_per_vol * m_i * params.scale_height * sqrt_2pi;
+                        let loss_j = collisions_per_vol * m_j * params.scale_height * sqrt_2pi;
+                        let gain_k =
+                            collisions_per_vol * m_combined * params.scale_height * sqrt_2pi;
+
+                        fraction_change[i] -= loss_i / params.surface_density;
+                        if j != i {
+                            fraction_change[j] -= loss_j / params.surface_density;
+                        }
+                        fraction_change[k] += gain_k / params.surface_density;
+                    }
+
+                    CollisionOutcome::PartialSticking { efficiency } => {
+                        // Only fraction of mass sticks
+                        let m_stuck = (m_i + m_j) * efficiency;
+                        let s_stuck =
+                            (m_stuck / ((4.0 / 3.0) * PI * material_density)).powf(1.0 / 3.0);
+                        let k = self.find_bin(s_stuck);
+
+                        let loss_i = collisions_per_vol * m_i * params.scale_height * sqrt_2pi;
+                        let loss_j = collisions_per_vol * m_j * params.scale_height * sqrt_2pi;
+                        let gain_k = collisions_per_vol * m_stuck * params.scale_height * sqrt_2pi;
+
+                        // Remaining mass bounces back (stays in original bins proportionally)
+                        let bounce_i = collisions_per_vol
+                            * m_i
+                            * (1.0 - efficiency)
+                            * params.scale_height
+                            * sqrt_2pi;
+                        let bounce_j = collisions_per_vol
+                            * m_j
+                            * (1.0 - efficiency)
+                            * params.scale_height
+                            * sqrt_2pi;
+
+                        fraction_change[i] -= loss_i / params.surface_density;
+                        fraction_change[i] += bounce_i / params.surface_density;
+                        if j != i {
+                            fraction_change[j] -= loss_j / params.surface_density;
+                            fraction_change[j] += bounce_j / params.surface_density;
+                        }
+                        fraction_change[k] += gain_k / params.surface_density;
+                    }
+
+                    CollisionOutcome::Bouncing => {
+                        // No mass transfer at all
+                        // Particles remain in their original bins
+                    }
+
+                    CollisionOutcome::Fragmentation { power_law_exponent } => {
+                        // Both particles fragment into smaller pieces
+                        let total_mass_frag = m_i + m_j;
+
+                        // Remove mass from original bins
+                        let loss_i = collisions_per_vol * m_i * params.scale_height * sqrt_2pi;
+                        let loss_j = collisions_per_vol * m_j * params.scale_height * sqrt_2pi;
+                        fraction_change[i] -= loss_i / params.surface_density;
+                        if j != i {
+                            fraction_change[j] -= loss_j / params.surface_density;
+                        }
+
+                        // Redistribute mass to smaller bins following power law
+                        let frag_mass_per_vol = collisions_per_vol * total_mass_frag;
+                        self.redistribute_fragments(
+                            FragmentParams {
+                                total_mass: frag_mass_per_vol,
+                                max_size: s_i.max(s_j),
+                                power_law_exponent,
+                                scale_height: params.scale_height,
+                                sqrt_2pi,
+                                surface_density: params.surface_density,
+                            },
+                            &mut fraction_change,
+                        );
+                    }
+
+                    CollisionOutcome::Erosion { mass_loss_fraction } => {
+                        // Target loses mass, projectile unaffected
+                        let (target_idx, _projectile_idx) = if s_i > s_j { (i, j) } else { (j, i) };
+                        let target_size = s_i.max(s_j);
+                        let m_target = (4.0 / 3.0) * PI * material_density * target_size.powi(3);
+
+                        let mass_eroded = m_target * mass_loss_fraction;
+                        let loss =
+                            collisions_per_vol * mass_eroded * params.scale_height * sqrt_2pi;
+                        fraction_change[target_idx] -= loss / params.surface_density;
+
+                        // Eroded mass creates small fragments
+                        let frag_mass_per_vol = collisions_per_vol * mass_eroded;
+                        self.redistribute_fragments(
+                            FragmentParams {
+                                total_mass: frag_mass_per_vol,
+                                max_size: target_size * 0.1, // Fragments much smaller than target
+                                power_law_exponent: -2.5,
+                                scale_height: params.scale_height,
+                                sqrt_2pi,
+                                surface_density: params.surface_density,
+                            },
+                            &mut fraction_change,
+                        );
+                    }
+
+                    CollisionOutcome::MassTransfer {
+                        from_larger,
+                        fraction,
+                    } => {
+                        // Transfer mass between particles
+                        let (donor_idx, receiver_idx) = if from_larger {
+                            if s_i > s_j { (i, j) } else { (j, i) }
+                        } else if s_i < s_j {
+                            (i, j)
+                        } else {
+                            (j, i)
+                        };
+
+                        let donor_size = if from_larger {
+                            s_i.max(s_j)
+                        } else {
+                            s_i.min(s_j)
+                        };
+                        let m_donor = (4.0 / 3.0) * PI * material_density * donor_size.powi(3);
+                        let mass_transferred = m_donor * fraction;
+
+                        let loss =
+                            collisions_per_vol * mass_transferred * params.scale_height * sqrt_2pi;
+                        fraction_change[donor_idx] -= loss / params.surface_density;
+                        fraction_change[receiver_idx] += loss / params.surface_density;
+                    }
+                }
+            }
+        }
+
+        // Apply stability limits (same as evolve_sticking)
+        for i in 0..n {
+            let max_loss = 0.5 * mass_fraction[i];
+            if fraction_change[i] < -max_loss {
+                fraction_change[i] = -max_loss;
+            }
+        }
+
+        // Apply fraction changes
+        let mut new_fraction: Vec<f64> = mass_fraction
+            .iter()
+            .zip(fraction_change.iter())
+            .map(|(&f, &df)| (f + df).max(0.0))
+            .collect();
+
+        // Renormalize
+        let frac_sum: f64 = new_fraction.iter().sum();
+        if frac_sum > 0.0 {
+            for f in &mut new_fraction {
+                *f /= frac_sum;
+            }
+        }
+
+        // Convert back to absolute mass
+        let new_mass: Vec<f64> = new_fraction.iter().map(|&f| f * total_mass).collect();
+
+        SizeDistribution::Binned {
+            bin_edges,
+            mass_per_bin: new_mass,
+            material_density,
+        }
+    }
+
+    /// Redistribute fragmented mass into smaller bins following a power law.
+    fn redistribute_fragments(&self, params: FragmentParams, fraction_change: &mut [f64]) {
+        let total_fragment_mass = params.total_mass;
+        let max_fragment_size = params.max_size;
+        let power_law_exponent = params.power_law_exponent;
+        let scale_height = params.scale_height;
+        let sqrt_2pi = params.sqrt_2pi;
+        let surface_density = params.surface_density;
+        // Fragment size range: from smallest bin up to max_fragment_size
+        let s_min = self.bin_edges[0];
+        let s_max = max_fragment_size.min(self.bin_edges[self.n_bins]);
+
+        if s_max <= s_min {
+            // All fragments go to smallest bin
+            let sigma_gain = total_fragment_mass * scale_height * sqrt_2pi;
+            fraction_change[0] += sigma_gain / surface_density;
+            return;
+        }
+
+        // Power law mass distribution: dm/ds ∝ s^q
+        // For fragments, typical q ≈ -2 to -2.5
+        let q = power_law_exponent;
+
+        // Compute normalization for mass integral
+        let mass_integral = if (q + 4.0).abs() < 1e-10 {
+            (s_max / s_min).ln()
+        } else {
+            (s_max.powf(q + 4.0) - s_min.powf(q + 4.0)) / (q + 4.0)
+        };
+
+        // Distribute mass to bins that overlap with fragment range
+        for (i, frac_change) in fraction_change.iter_mut().enumerate() {
+            let bin_s_min = self.bin_edges[i];
+            let bin_s_max = self.bin_edges[i + 1];
+
+            // Check if bin overlaps with fragment range
+            if bin_s_max <= s_min || bin_s_min >= s_max {
+                continue;
+            }
+
+            // Overlap range
+            let overlap_min = bin_s_min.max(s_min);
+            let overlap_max = bin_s_max.min(s_max);
+
+            // Mass in this bin from power law
+            let bin_mass_integral = if (q + 4.0).abs() < 1e-10 {
+                (overlap_max / overlap_min).ln()
+            } else {
+                (overlap_max.powf(q + 4.0) - overlap_min.powf(q + 4.0)) / (q + 4.0)
+            };
+
+            let bin_mass_fraction = bin_mass_integral / mass_integral;
+            let bin_mass = total_fragment_mass * bin_mass_fraction;
+
+            // Convert to surface density change
+            let sigma_gain = bin_mass * scale_height * sqrt_2pi;
+            *frac_change += sigma_gain / surface_density;
         }
     }
 

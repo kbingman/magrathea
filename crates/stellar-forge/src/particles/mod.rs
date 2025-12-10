@@ -49,7 +49,7 @@ mod particle_test;
 #[cfg(test)]
 mod size_distribution_test;
 
-pub use coagulation::Coagulation;
+pub use coagulation::{Coagulation, EvolutionParams};
 pub use collision_outcome::{CollisionOutcome, MaterialProperties};
 pub use particle::{DragRegime, Particle};
 pub use particle_bin::ParticleBin;
