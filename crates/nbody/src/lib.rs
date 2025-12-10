@@ -3,6 +3,8 @@ pub mod body;
 
 #[cfg(test)]
 mod arena_bhtree_test;
+#[cfg(test)]
+mod body_test;
 
 // pub fn add(left: u64, right: u64) -> u64 {
 //     left + right
