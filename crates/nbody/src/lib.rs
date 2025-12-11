@@ -1,5 +1,6 @@
 pub mod arena_bhtree;
 pub mod body;
+pub mod forces;
 pub mod state;
 
 #[cfg(test)]
