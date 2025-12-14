@@ -6,7 +6,7 @@ import { SystemCatalog } from "./components/systems-catalog.tsx";
 const MAX_WIDTH = 720;
 
 function App() {
-  const { systems } = useGenerateSystems("gamma-quadrant", 100);
+  const { systems } = useGenerateSystems("gamma-quadrant", 1000);
 
   return (
     <div className="p-4 pb-16 min-h-screen text-amber-600 bg-neutral-950 font-mono">

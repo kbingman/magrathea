@@ -1,6 +1,5 @@
 import type { PlanetarySystem } from "@magrathea/planetary-wasm";
 import { useMemo } from "react";
-import { filterBySpectralType } from "../utils/stars";
 import { collectPlanets, filterByClass } from "../utils/planets";
 import { DataList } from "./data-list";
 import { useStars } from "../hooks/use-stars";
@@ -14,7 +13,7 @@ export function SectorInfo({ systems }: Props) {
 
   const planets = useMemo(() => collectPlanets(systems), [systems]);
 
-  const averagePlanets = planets.length / systems.length;
+  const averagePlanets = (planets.length / systems.length).toFixed(3);
 
   const { compact, transitional, volatile, giant } = useMemo(() => {
     return {

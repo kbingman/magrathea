@@ -838,6 +838,7 @@ fn sample_composition(
                 } else {
                     rng.random::<f64>() * 0.05 // 0.00-0.05 (dry)
                 };
+
                 Composition::new(
                     0.25 + rng.random::<f64>() * 0.15,
                     0.60 + rng.random::<f64>() * 0.15,
@@ -856,6 +857,7 @@ fn sample_composition(
                 rng.random::<f64>() * 0.10 // 0.00-0.10 (dry)
             };
             let envelope = rng.random::<f64>() * 0.15;
+
             Composition::new(
                 0.15 + rng.random::<f64>() * 0.10,
                 0.40 + rng.random::<f64>() * 0.10,
