@@ -13,5 +13,6 @@ mod resolution_test;
 
 pub use detection::{
     CollisionCriteria, CollisionDetector, CollisionEvent, DirectDetector, TreeDetector,
+    detect_ejections, detect_star_collisions,
 };
-pub use resolution::{merge_bodies, resolve_collisions};
+pub use resolution::{merge_bodies, remove_ejections, remove_star_collisions, resolve_collisions};
