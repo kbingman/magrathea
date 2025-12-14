@@ -1,12 +1,15 @@
 pub mod arena_bhtree;
 pub mod body;
 pub mod forces;
+pub mod integrator;
 pub mod state;
 
 #[cfg(test)]
 mod arena_bhtree_test;
 #[cfg(test)]
 mod body_test;
+#[cfg(test)]
+mod integrator_test;
 #[cfg(test)]
 mod state_test;
 

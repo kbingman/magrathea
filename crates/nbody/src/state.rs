@@ -202,4 +202,31 @@ impl SystemState {
             .map(|b| b.specific_angular_momentum() * b.mass)
             .sum()
     }
+
+    /// Returns the kinetic energy of all bodies
+    ///
+    /// KE = 0.5 * m * v²
+    ///
+    /// Units: M☉ AU² year⁻²
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use nbody::state::SystemState;
+    /// use nalgebra::{Point2, Vector2};
+    /// use stellar::generation::main_sequence_star;
+    ///
+    /// let star = main_sequence_star(1.0, 0.0, 4_600.0);
+    /// let mut system = SystemState::new(star);
+    ///
+    /// // Body at rest has zero kinetic energy
+    /// system.add_body(1.0, 0.01, Point2::new(1.0, 0.0), Vector2::zeros());
+    /// assert_eq!(system.kinetic_energy(), 0.0);
+    /// ```
+    pub fn kinetic_energy(&self) -> f64 {
+        self.bodies
+            .iter()
+            .map(|b| 0.5 * b.mass * b.velocity.magnitude_squared())
+            .sum()
+    }
 }

@@ -3,22 +3,14 @@ import { useMemo } from "react";
 import { filterBySpectralType } from "../utils/stars";
 import { collectPlanets, filterByClass } from "../utils/planets";
 import { DataList } from "./data-list";
+import { useStars } from "../hooks/use-stars";
 
 type Props = {
   systems: PlanetarySystem[];
 };
 
 export function SectorInfo({ systems }: Props) {
-  const stars = useMemo(
-    () => ({
-      M: filterBySpectralType(systems, "M"),
-      K: filterBySpectralType(systems, "K"),
-      G: filterBySpectralType(systems, "G"),
-      F: filterBySpectralType(systems, "F"),
-      A: filterBySpectralType(systems, "A"),
-    }),
-    [systems]
-  );
+  const stars = useStars(systems);
 
   const planets = useMemo(() => collectPlanets(systems), [systems]);
 
@@ -81,7 +73,7 @@ export function SectorInfo({ systems }: Props) {
           [
             <div className="flex gap-1 items-center">
               <div className="bg-orange-300 size-4 rounded-full"></div>
-              Giant
+              <div>Giant</div>
             </div>,
             giant.length,
           ],
