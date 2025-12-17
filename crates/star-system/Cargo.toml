@@ -10,6 +10,7 @@ tsify = ["dep:tsify-next", "dep:wasm-bindgen", "planetary/tsify", "stellar/tsify
 [dependencies]
 planetary = { path = "../planetary" }
 stellar = { path = "../stellar" }
+stellar_forge = { path = "../stellar-forge" }
 units = { path = "../units" }
 
 rand = "0.9"

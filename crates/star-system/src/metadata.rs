@@ -34,6 +34,7 @@ pub enum GenerationMethod {
 /// - The system's architectural classification
 /// - A catalog designation (e.g., "KV-4729") derived from the UUID
 /// - An optional proper name for notable "hero" systems
+/// - Binary star configuration (if applicable)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "tsify", derive(Tsify))]
@@ -63,6 +64,14 @@ pub struct SystemMetadata {
     /// This field is for notable systems that deserve memorable names.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+
+    /// Binary star configuration
+    ///
+    /// Present when the system contains a binary star pair (stars.len() == 2).
+    /// Defines the orbital parameters of the binary and the type of planetary
+    /// orbits (S-type around one star, or P-type circumbinary).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub binary_config: Option<stellar_forge::BinaryConfiguration>,
 }
 
 /// Generate a catalog designation from a UUID
@@ -144,6 +153,7 @@ impl SystemMetadata {
             generation_method,
             architecture,
             name: None,
+            binary_config: None,
         }
     }
 
@@ -162,6 +172,7 @@ impl SystemMetadata {
             generation_method,
             architecture,
             name: None,
+            binary_config: None,
         }
     }
 
@@ -202,6 +213,7 @@ impl SystemMetadata {
             generation_method,
             architecture,
             name: None,
+            binary_config: None,
         }
     }
 
@@ -221,6 +233,41 @@ impl SystemMetadata {
     /// ```
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
+        self
+    }
+
+    /// Set binary configuration for this system (builder pattern)
+    ///
+    /// # Example
+    /// ```
+    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
+    /// use stellar_forge::{BinaryConfiguration, BinaryOrbitType, OrbitalParameters};
+    /// use units::{Length, Time};
+    ///
+    /// let orbit = OrbitalParameters {
+    ///     semi_major_axis: Length::from_au(10.0),
+    ///     eccentricity: 0.1,
+    ///     inclination: 0.0,
+    ///     longitude_of_ascending_node: 0.0,
+    ///     argument_of_periapsis: 0.0,
+    ///     mean_anomaly: 0.0,
+    ///     period: Time::from_years(10.0),
+    /// };
+    ///
+    /// let binary_config = BinaryConfiguration {
+    ///     orbit_type: BinaryOrbitType::STypePrimary,
+    ///     orbital_params: orbit,
+    /// };
+    ///
+    /// let meta = SystemMetadata::new_random(
+    ///     GenerationMethod::Statistical,
+    ///     SystemArchitecture::Mixed,
+    /// ).with_binary_config(binary_config);
+    ///
+    /// assert!(meta.binary_config.is_some());
+    /// ```
+    pub fn with_binary_config(mut self, config: stellar_forge::BinaryConfiguration) -> Self {
+        self.binary_config = Some(config);
         self
     }
 }
