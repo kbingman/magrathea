@@ -9,7 +9,7 @@ pub mod sampling;
 // Re-export main generation functions
 pub use generation::{
     from_star, from_star_with_id, generate_planetary_system, generate_planetary_system_named,
-    generate_planetary_system_random,
+    generate_planetary_system_random, generate_random_system,
 };
 
 // Re-export sampling functions

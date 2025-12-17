@@ -81,3 +81,59 @@ pub fn sample_mass_kroupa(rng: &mut ChaChaRng, max_mass: f64) -> f64 {
         sample_power_law(1.0, max_mass, -2.3, rng)
     }
 }
+
+/// Sample stellar age from a population with given mean age and spread
+///
+/// Ages are drawn from a normal distribution, then clamped to physical limits:
+/// - Minimum: 0.1 Gyr (very young populations)
+/// - Maximum: min(stellar_lifetime, universe_age)
+///
+/// This allows modeling different stellar populations:
+/// - Young populations (mean ~0.5 Gyr, spread ~0.3 Gyr): Star-forming regions
+/// - Middle-aged (mean ~5 Gyr, spread ~2 Gyr): Thin disk like the Sun
+/// - Old populations (mean ~10 Gyr, spread ~2 Gyr): Thick disk, halo
+///
+/// # Arguments
+/// * `rng` - Random number generator
+/// * `stellar_mass` - Mass of the star in solar masses (used to cap age at lifetime)
+/// * `mean_age_gyr` - Mean population age in billions of years
+/// * `age_spread_gyr` - Standard deviation of age distribution in billions of years
+///
+/// # Returns
+/// Stellar age in billions of years
+///
+/// # Example
+/// ```
+/// use rand_chacha::ChaChaRng;
+/// use rand::SeedableRng;
+/// use stellar::sampling::sample_age_from_population;
+///
+/// let mut rng = ChaChaRng::seed_from_u64(42);
+///
+/// // Young star-forming region
+/// let young_age = sample_age_from_population(&mut rng, 1.0, 0.5, 0.3);
+///
+/// // Solar neighborhood (thin disk)
+/// let thin_disk_age = sample_age_from_population(&mut rng, 1.0, 5.0, 2.0);
+/// ```
+pub fn sample_age_from_population(
+    rng: &mut ChaChaRng,
+    stellar_mass: f64,
+    mean_age_gyr: f64,
+    age_spread_gyr: f64,
+) -> f64 {
+    const UNIVERSE_AGE_GYR: f64 = 13.8;
+    const MIN_AGE_GYR: f64 = 0.1;
+
+    // Calculate stellar lifetime
+    let lifetime_gyr = crate::generation::estimate_lifetime(stellar_mass);
+
+    // Maximum age is the minimum of stellar lifetime and universe age
+    let max_age = lifetime_gyr.min(UNIVERSE_AGE_GYR);
+
+    // Sample from normal distribution
+    let age = sample_gaussian(rng, mean_age_gyr, age_spread_gyr);
+
+    // Clamp to physical limits
+    age.clamp(MIN_AGE_GYR, max_age)
+}

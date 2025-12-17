@@ -8,8 +8,7 @@
 //!
 //! See `docs/OCCURRENCE_RATES.md` for detailed calibration.
 
-use rand::Rng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
 use stellar::{MainSequenceStar, StellarObject};
 use units::{Length, Mass};
@@ -264,6 +263,45 @@ pub fn from_star(star: &MainSequenceStar) -> PlanetarySystem {
 pub fn from_star_with_id(star: &MainSequenceStar, id: Uuid) -> PlanetarySystem {
     generate_planetary_system(StellarObject::MainSequence(star.clone()), id)
 }
+
+// =============================================================================
+// Full Stellar Distribution Generation
+// =============================================================================
+
+/// Generate a planetary system from full stellar distribution with deterministic seed
+///
+/// This convenience function:
+/// 1. Samples a star from the complete IMF (main sequence, giants, remnants)
+/// 2. Generates a planetary system around it
+///
+/// The stellar population uses default parameters:
+/// - Age: Uniform 0.1-10 Gyr (capped at stellar lifetime)
+/// - Metallicity: Solar neighborhood distribution
+/// - Mass: Full Kroupa IMF (0.08-150 M☉)
+///
+/// # Arguments
+/// * `seed` - Random number generator seed for reproducible generation
+///
+/// # Returns
+/// A complete `PlanetarySystem` with deterministically generated stellar host and planets
+///
+/// # Example
+/// ```
+/// use planetary_generator::generate_random_system;
+///
+/// let system1 = generate_random_system(42);
+/// let system2 = generate_random_system(42);
+/// // system1 and system2 are identical
+/// ```
+pub fn generate_random_system(seed: u64) -> PlanetarySystem {
+    let mut rng = ChaChaRng::seed_from_u64(seed);
+    let star = stellar::sample_stellar_object(&mut rng);
+    generate_planetary_system_random(star)
+}
+
+// =============================================================================
+// Architecture-Specific Generators
+// =============================================================================
 
 /// Generate a compact multi-planet system (Kepler-like)
 ///
