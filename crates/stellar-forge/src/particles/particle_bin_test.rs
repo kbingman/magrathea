@@ -721,3 +721,307 @@ fn toomre_q_scales_with_orbital_frequency() {
     // (Actually depends on how sound speed varies with radius)
     println!("Q_inner = {}, Q_outer = {}", q_inner, q_outer);
 }
+
+// =============================================================================
+// Planetesimal Formation Tests
+// =============================================================================
+
+#[test]
+fn jeans_mass_positive() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let m_j = bin.jeans_mass();
+
+    assert!(m_j.to_grams() > 0.0);
+}
+
+#[test]
+fn jeans_mass_increases_with_velocity_dispersion() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin_low = ParticleBin::from_disk(&disk, r, width);
+    bin_low.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin_low.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let mut bin_high = ParticleBin::from_disk(&disk, r, width);
+    bin_high.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin_high.set_velocity_dispersion(disk.sound_speed(r) * 0.1);
+
+    let m_j_low = bin_low.jeans_mass().to_grams();
+    let m_j_high = bin_high.jeans_mass().to_grams();
+
+    // M_J ∝ σ⁴, so 10x velocity → 10000x mass
+    assert!(
+        m_j_high > m_j_low,
+        "Higher velocity should give larger Jeans mass"
+    );
+    assert_relative_eq!(m_j_high, m_j_low * 10000.0, max_relative = 0.01);
+}
+
+#[test]
+fn jeans_mass_decreases_with_surface_density() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin_low = ParticleBin::from_disk(&disk, r, width);
+    bin_low.set_surface_density(SurfaceDensity::from_grams_per_cm2(10.0));
+    bin_low.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let mut bin_high = ParticleBin::from_disk(&disk, r, width);
+    bin_high.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin_high.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let m_j_low = bin_low.jeans_mass().to_grams();
+    let m_j_high = bin_high.jeans_mass().to_grams();
+
+    // M_J ∝ 1/Σ
+    assert!(
+        m_j_high < m_j_low,
+        "Higher surface density should give smaller Jeans mass"
+    );
+    assert_relative_eq!(m_j_high * 10.0, m_j_low, max_relative = 0.01);
+}
+
+#[test]
+fn freefall_time_positive() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.1);
+
+    let t_ff = bin.freefall_time();
+
+    assert!(t_ff.to_seconds() > 0.0);
+}
+
+#[test]
+fn freefall_time_reasonable() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.1);
+
+    let t_ff = bin.freefall_time();
+    let t_orb = disk.orbital_period(r);
+
+    // Free-fall time should be comparable to orbital period (within 2 orders of magnitude)
+    let ratio = t_ff.to_seconds() / t_orb.to_seconds();
+    assert!(
+        ratio > 0.01 && ratio < 1000.0,
+        "Free-fall time ratio {} should be within [0.01, 1000]",
+        ratio
+    );
+}
+
+#[test]
+fn planetesimal_size_positive() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.1);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let size = bin.planetesimal_size();
+
+    assert!(size.to_cm() > 0.0);
+}
+
+#[test]
+fn planetesimal_size_km_scale() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.1);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let size = bin.planetesimal_size();
+
+    // Should be km-scale (1-1000 km)
+    assert!(
+        size.to_km() > 0.1 && size.to_km() < 10000.0,
+        "Planetesimal size {} km should be in range [0.1, 10000]",
+        size.to_km()
+    );
+}
+
+#[test]
+fn stable_bin_does_not_form_planetesimals() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaChaRng;
+
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+    let mut rng = ChaChaRng::seed_from_u64(42);
+
+    // Well-mixed, stable bin
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+
+    let event = bin.attempt_planetesimal_formation(&disk, &mut rng);
+
+    assert!(event.is_none(), "Stable bin should not form planetesimals");
+}
+
+#[test]
+fn unstable_bin_forms_planetesimals() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaChaRng;
+
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+    let mut rng = ChaChaRng::seed_from_u64(42);
+
+    // Create unstable bin
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.5);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    // Should be unstable
+    assert!(bin.is_gravitationally_unstable(&disk));
+
+    let event = bin.attempt_planetesimal_formation(&disk, &mut rng);
+
+    assert!(event.is_some(), "Unstable bin should form planetesimals");
+}
+
+#[test]
+fn planetesimal_formation_removes_mass_from_bin() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaChaRng;
+
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+    let mut rng = ChaChaRng::seed_from_u64(42);
+
+    // Create unstable bin
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.5);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    let initial_mass = bin.total_mass().to_grams();
+
+    let event = bin.attempt_planetesimal_formation(&disk, &mut rng).unwrap();
+
+    let final_mass = bin.total_mass().to_grams();
+    let mass_removed = initial_mass - final_mass;
+
+    // Mass removed should equal event total mass
+    assert_relative_eq!(
+        mass_removed,
+        event.total_mass.to_grams(),
+        max_relative = 1e-6
+    );
+
+    // Bin should have less mass
+    assert!(final_mass < initial_mass);
+}
+
+#[test]
+fn planetesimal_formation_conserves_mass() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaChaRng;
+
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+    let mut rng = ChaChaRng::seed_from_u64(42);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.5);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    let initial_mass = bin.total_mass().to_grams();
+
+    let event = bin.attempt_planetesimal_formation(&disk, &mut rng).unwrap();
+
+    let final_mass = bin.total_mass().to_grams();
+    let total_after = final_mass + event.total_mass.to_grams();
+
+    // Total mass should be conserved
+    assert_relative_eq!(total_after, initial_mass, max_relative = 1e-6);
+}
+
+#[test]
+fn planetesimal_formation_event_has_positive_mass() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaChaRng;
+
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+    let mut rng = ChaChaRng::seed_from_u64(42);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.5);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    let event = bin.attempt_planetesimal_formation(&disk, &mut rng).unwrap();
+
+    assert!(event.total_mass.to_grams() > 0.0);
+    assert!(event.characteristic_mass.to_grams() > 0.0);
+    assert!(event.number_formed() > 0.0);
+}
+
+#[test]
+fn multiple_formation_events_deplete_bin() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaChaRng;
+
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+    let mut rng = ChaChaRng::seed_from_u64(42);
+
+    let mut bin = ParticleBin::from_disk(&disk, r, width);
+    bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    bin.set_scale_height(disk.scale_height(r) * 0.5);
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    let initial_mass = bin.total_mass().to_grams();
+    let mut total_formed = 0.0;
+
+    // Form planetesimals multiple times
+    for _ in 0..5 {
+        if let Some(event) = bin.attempt_planetesimal_formation(&disk, &mut rng) {
+            total_formed += event.total_mass.to_grams();
+        }
+    }
+
+    let final_mass = bin.total_mass().to_grams();
+
+    // Should have formed some planetesimals
+    assert!(total_formed > 0.0);
+
+    // Mass should be conserved
+    assert_relative_eq!(initial_mass, final_mass + total_formed, max_relative = 1e-6);
+
+    // Bin should be significantly depleted
+    assert!(final_mass < initial_mass * 0.5);
+}

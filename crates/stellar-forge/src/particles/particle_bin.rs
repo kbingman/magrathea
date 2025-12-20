@@ -643,4 +643,255 @@ impl ParticleBin {
         // 2. Shear stable (high Ri)
         q < Q_CRIT && ri > RI_CRIT
     }
+
+    // =========================================================================
+    // Planetesimal Formation
+    // =========================================================================
+
+    /// Jeans mass for the particle layer.
+    ///
+    /// When a particle layer becomes gravitationally unstable, it fragments
+    /// into clumps with a characteristic mass scale set by the Jeans length.
+    ///
+    /// For a self-gravitating particle layer with surface density Σ and
+    /// velocity dispersion σ:
+    ///
+    /// ```text
+    /// λ_J = σ² / (G × Σ)
+    /// M_J = π × λ_J² × Σ
+    /// ```
+    ///
+    /// Simplifying:
+    ///
+    /// ```text
+    /// M_J = π × σ⁴ / (G² × Σ)
+    /// ```
+    ///
+    /// This is the characteristic mass of planetesimals that form from
+    /// gravitational instability.
+    ///
+    /// # Physical Interpretation
+    ///
+    /// - **High velocity dispersion** → larger Jeans mass (harder to compress)
+    /// - **High surface density** → smaller Jeans mass (stronger self-gravity)
+    /// - Typical values: 10¹⁸ - 10²¹ g (1-100 km diameter)
+    ///
+    /// # References
+    /// - Goldreich & Ward (1973) - Original calculation
+    /// - Youdin & Shu (2002) - Particle layer physics
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::{DiskModel, GasDisk};
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::{Length, SurfaceDensity, Density};
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    ///
+    /// // Create a dense, settled layer
+    /// let mut bin = ParticleBin::from_disk(&disk, r, width);
+    /// bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    /// bin.set_scale_height(disk.scale_height(r) * 0.1);
+    /// bin.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+    ///
+    /// let m_j = bin.jeans_mass();
+    ///
+    /// // Typical planetesimal mass range
+    /// assert!(m_j.to_grams() > 1e18);
+    /// ```
+    pub fn jeans_mass(&self) -> Mass {
+        use crate::disk::constants::G;
+
+        let sigma = self.velocity_dispersion;
+        let surface_density = self.surface_density;
+
+        // M_J = π × σ⁴ / (G² × Σ)
+        let m_j = PI * sigma.powi(4) / (G.powi(2) * surface_density);
+
+        Mass::from_grams(m_j)
+    }
+
+    /// Free-fall time for gravitational collapse.
+    ///
+    /// When a particle layer becomes unstable, it collapses on the free-fall
+    /// timescale:
+    ///
+    /// ```text
+    /// t_ff = 1 / sqrt(G × ρ)
+    /// ```
+    ///
+    /// where ρ is the midplane volume density of the particle layer.
+    ///
+    /// This sets the timescale for planetesimal formation once instability
+    /// criteria are met.
+    ///
+    /// # Physical Interpretation
+    ///
+    /// - Denser layers collapse faster
+    /// - Typical values: 10-100 orbits
+    /// - Much faster than coagulation timescales
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::{DiskModel, GasDisk};
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::{Length, SurfaceDensity};
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    ///
+    /// let mut bin = ParticleBin::from_disk(&disk, r, width);
+    /// bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    /// bin.set_scale_height(disk.scale_height(r) * 0.1);
+    ///
+    /// let t_ff = bin.freefall_time();
+    /// let t_orb = disk.orbital_period(r);
+    ///
+    /// // Free-fall time should be comparable to orbital period
+    /// let ratio = t_ff.to_seconds() / t_orb.to_seconds();
+    /// assert!(ratio > 0.1 && ratio < 100.0);
+    /// ```
+    pub fn freefall_time(&self) -> Time {
+        use crate::disk::constants::G;
+
+        let rho = self.midplane_density().to_grams_per_cm3();
+
+        // t_ff = sqrt(3π / (32 G ρ))
+        // Simplified to 1 / sqrt(G × ρ) for order-of-magnitude
+        let t_ff = 1.0 / (G * rho).sqrt();
+
+        Time::from_seconds(t_ff)
+    }
+
+    /// Characteristic planetesimal size from Jeans mass.
+    ///
+    /// Converts the Jeans mass to a physical radius assuming spherical
+    /// geometry and material density.
+    ///
+    /// ```text
+    /// R = (3 M_J / (4π ρ_m))^(1/3)
+    /// ```
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::{DiskModel, GasDisk};
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::{Length, SurfaceDensity};
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    ///
+    /// let mut bin = ParticleBin::from_disk(&disk, r, width);
+    /// bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    /// bin.set_scale_height(disk.scale_height(r) * 0.1);
+    /// bin.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+    ///
+    /// let size = bin.planetesimal_size();
+    ///
+    /// // Should be km-scale
+    /// assert!(size.to_km() > 1.0);
+    /// ```
+    pub fn planetesimal_size(&self) -> Length {
+        let m_j = self.jeans_mass().to_grams();
+        let rho_m = self.material_density().to_grams_per_cm3();
+
+        // R = (3 M / (4π ρ))^(1/3)
+        let radius = ((3.0 * m_j) / (4.0 * PI * rho_m)).powf(1.0 / 3.0);
+
+        Length::from_cm(radius)
+    }
+
+    /// Attempt to form planetesimals from gravitational instability.
+    ///
+    /// Checks if the particle bin is gravitationally unstable and, if so,
+    /// converts a fraction of its mass into planetesimals.
+    ///
+    /// # Process
+    ///
+    /// 1. Check stability criteria (Toomre Q and Richardson number)
+    /// 2. If unstable, calculate Jeans mass and formation efficiency
+    /// 3. Remove mass from the particle bin
+    /// 4. Return a formation event describing the planetesimals created
+    ///
+    /// # Arguments
+    /// * `disk` - Gas disk model for stability checks
+    /// * `rng` - Random number generator for stochastic efficiency
+    ///
+    /// # Returns
+    /// - `Some(event)` if planetesimals formed
+    /// - `None` if bin is stable
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::{DiskModel, GasDisk};
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::{Length, SurfaceDensity};
+    /// use rand::SeedableRng;
+    /// use rand_chacha::ChaChaRng;
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    /// let mut rng = ChaChaRng::seed_from_u64(42);
+    ///
+    /// // Create an unstable bin
+    /// let mut bin = ParticleBin::from_disk(&disk, r, width);
+    /// bin.set_surface_density(SurfaceDensity::from_grams_per_cm2(100.0));
+    /// bin.set_scale_height(disk.scale_height(r) * 0.5);
+    /// bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+    ///
+    /// // Attempt formation
+    /// if let Some(event) = bin.attempt_planetesimal_formation(&disk, &mut rng) {
+    ///     println!("Formed {} planetesimals at {} AU",
+    ///              event.number_formed(),
+    ///              event.location.to_au());
+    /// }
+    /// ```
+    pub fn attempt_planetesimal_formation<D: DiskModel>(
+        &mut self,
+        disk: &D,
+        rng: &mut rand_chacha::ChaChaRng,
+    ) -> Option<crate::particles::PlanetesimalFormationEvent> {
+        use crate::particles::PlanetesimalFormationEvent;
+
+        // Check if gravitationally unstable
+        if !self.is_gravitationally_unstable(disk) {
+            return None;
+        }
+
+        // Calculate properties for planetesimal formation
+        let jeans_mass = self.jeans_mass();
+        let jeans_size = self.planetesimal_size();
+        let available_mass = self.total_mass();
+        let freefall_time = self.freefall_time();
+
+        // Sample formation efficiency based on how unstable the layer is
+        let q = self.toomre_q(disk);
+        let efficiency = PlanetesimalFormationEvent::sample_efficiency(q, rng);
+
+        // Create formation event
+        let event = PlanetesimalFormationEvent::new(
+            self.radial_center(),
+            jeans_mass,
+            jeans_size,
+            available_mass,
+            freefall_time,
+            efficiency,
+            self.material_density(),
+        );
+
+        // Remove mass from particle bin (it's now in planetesimals)
+        let mass_converted = event.total_mass.to_grams();
+        let area = self.area();
+        let new_surface_density = self.surface_density - mass_converted / area;
+
+        // Ensure non-negative surface density
+        self.surface_density = new_surface_density.max(0.0);
+
+        Some(event)
+    }
 }

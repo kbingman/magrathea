@@ -38,6 +38,7 @@ mod coagulation;
 mod collision_outcome;
 mod particle;
 mod particle_bin;
+mod planetesimal_formation;
 mod size_distribution;
 
 #[cfg(test)]
@@ -53,4 +54,5 @@ pub use coagulation::{Coagulation, EvolutionParams};
 pub use collision_outcome::{CollisionOutcome, MaterialProperties};
 pub use particle::{DragRegime, Particle};
 pub use particle_bin::ParticleBin;
+pub use planetesimal_formation::PlanetesimalFormationEvent;
 pub use size_distribution::SizeDistribution;
