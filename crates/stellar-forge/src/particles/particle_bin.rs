@@ -443,4 +443,204 @@ impl ParticleBin {
 
         self.scale_height = h_eq + (self.scale_height - h_eq) * factor;
     }
+
+    // =========================================================================
+    // Gravitational Instability
+    // =========================================================================
+
+    /// Toomre Q parameter for the particle layer.
+    ///
+    /// The Toomre Q parameter measures gravitational stability:
+    ///
+    /// ```text
+    /// Q = σ × Ω / (π × G × Σ)
+    /// ```
+    ///
+    /// where:
+    /// - σ is the velocity dispersion
+    /// - Ω is the orbital frequency
+    /// - G is the gravitational constant
+    /// - Σ is the surface density
+    ///
+    /// **Stability criterion:**
+    /// - Q > Q_crit (≈ 1-2): Gravitationally stable
+    /// - Q < Q_crit: Gravitationally unstable, layer can fragment
+    ///
+    /// For a particle layer to collapse into planetesimals via the
+    /// Goldreich-Ward mechanism or streaming instability, Q must be
+    /// below the critical value.
+    ///
+    /// # References
+    /// - Toomre (1964) - Original stability criterion for gaseous disks
+    /// - Goldreich & Ward (1973) - Application to particle layers
+    /// - Youdin & Goodman (2005) - Streaming instability
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::GasDisk;
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::Length;
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    /// let bin = ParticleBin::from_disk(&disk, r, width);
+    ///
+    /// let q = bin.toomre_q(&disk);
+    /// // Initially well-mixed particles have high Q (stable)
+    /// assert!(q > 10.0);
+    /// ```
+    pub fn toomre_q<D: DiskModel>(&self, disk: &D) -> f64 {
+        use crate::disk::constants::G;
+
+        let r = self.radial_center();
+        let sigma = self.velocity_dispersion;
+        let omega = disk.orbital_frequency(r).to_rad_per_sec();
+        let surface_density = self.surface_density;
+
+        // Q = σ × Ω / (π × G × Σ)
+        sigma * omega / (PI * G * surface_density)
+    }
+
+    /// Richardson number for the particle layer.
+    ///
+    /// The Richardson number measures vertical shear stability:
+    ///
+    /// ```text
+    /// Ri = (Ω_K² + N²) / (dv/dz)²
+    /// ```
+    ///
+    /// where N² is the squared Brunt-Väisälä frequency (buoyancy oscillation).
+    ///
+    /// For a particle layer in a gas disk, the Richardson number must be
+    /// sufficiently high (Ri > Ri_crit ≈ 0.25) to avoid Kelvin-Helmholtz
+    /// instability from vertical shear.
+    ///
+    /// **Key physics:**
+    /// - If particles settle too much, they create a sharp density gradient
+    /// - Sharp gradients can trigger shear instabilities
+    /// - These instabilities stir the layer, preventing further settling
+    /// - Result: self-regulation of particle layer thickness
+    ///
+    /// This prevents unrealistic collapse in simulations and captures the
+    /// physics of turbulence generation by particle layers.
+    ///
+    /// # Simplified Calculation
+    ///
+    /// For a thin particle layer in a gaseous disk, we use a simplified
+    /// estimate based on the particle-to-gas density ratio and vertical
+    /// structure:
+    ///
+    /// ```text
+    /// Ri ≈ (h_p / h_g)² × (1 + ρ_p / ρ_g)
+    /// ```
+    ///
+    /// This captures the essential physics:
+    /// - Thicker particle layers (h_p → h_g) → high Ri → stable
+    /// - Thin particle layers (h_p << h_g) → low Ri → potentially unstable
+    /// - High particle density → stabilizing (more inertia)
+    ///
+    /// # References
+    /// - Sekiya (1998) - Gravitational instability in particle disks
+    /// - Youdin & Shu (2002) - Particle layer instabilities
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::GasDisk;
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::Length;
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    /// let bin = ParticleBin::from_disk(&disk, r, width);
+    ///
+    /// let ri = bin.richardson_number(&disk);
+    /// // Well-mixed particles have high Ri (stable against shear)
+    /// assert!(ri > 1.0);
+    /// ```
+    pub fn richardson_number<D: DiskModel>(&self, disk: &D) -> f64 {
+        let r = self.radial_center();
+
+        // Particle layer scale height
+        let h_p = self.scale_height;
+
+        // Gas disk scale height
+        let h_g = disk.scale_height(r).to_cm();
+
+        // Midplane densities
+        let rho_p = self.midplane_density().to_grams_per_cm3();
+        let rho_g = disk.midplane_density(r).to_grams_per_cm3();
+
+        // Simplified Richardson number estimate
+        // Ri ≈ (h_p / h_g)² × (1 + ρ_p / ρ_g)
+        let height_ratio = h_p / h_g.max(1e-10);
+        let density_enhancement = 1.0 + rho_p / rho_g.max(1e-10);
+
+        height_ratio.powi(2) * density_enhancement
+    }
+
+    /// Check if the particle layer is gravitationally unstable.
+    ///
+    /// A particle layer can collapse into planetesimals if two conditions
+    /// are met simultaneously:
+    ///
+    /// 1. **Gravitational instability**: Toomre Q < Q_crit
+    ///    - Self-gravity overcomes random velocities
+    ///    - Layer wants to clump
+    ///
+    /// 2. **Shear stability**: Richardson Ri > Ri_crit
+    ///    - No self-excited turbulence from shear
+    ///    - Layer remains coherent
+    ///
+    /// If both conditions hold, the layer is in the "Goldreich-Ward unstable"
+    /// regime and can fragment into planetesimals.
+    ///
+    /// # Critical Values
+    ///
+    /// - **Q_crit ≈ 1.0-2.0**: Standard threshold from linear stability analysis
+    /// - **Ri_crit ≈ 0.25**: Classic fluid dynamics threshold
+    ///
+    /// # Physical Interpretation
+    ///
+    /// - **Q < Q_crit, Ri > Ri_crit**: Goldreich-Ward unstable → planetesimals form
+    /// - **Q < Q_crit, Ri < Ri_crit**: Self-excited turbulence → layer thickens, Q increases
+    /// - **Q > Q_crit**: Gravitationally stable → no fragmentation
+    ///
+    /// This creates a self-regulating system where particle layers can only
+    /// fragment in specific locations (e.g., pressure bumps, snow line) where
+    /// conditions are just right.
+    ///
+    /// # References
+    /// - Goldreich & Ward (1973) - Gravitational instability mechanism
+    /// - Youdin & Goodman (2005) - Streaming instability
+    /// - Johansen et al. (2007) - Numerical simulations
+    ///
+    /// # Example
+    /// ```
+    /// use stellar_forge::disk::GasDisk;
+    /// use stellar_forge::particles::ParticleBin;
+    /// use units::Length;
+    ///
+    /// let disk = GasDisk::mmsn();
+    /// let r = Length::from_au(5.0);
+    /// let width = Length::from_au(0.5);
+    /// let bin = ParticleBin::from_disk(&disk, r, width);
+    ///
+    /// // Initially stable (well-mixed, low density)
+    /// assert!(!bin.is_gravitationally_unstable(&disk));
+    /// ```
+    pub fn is_gravitationally_unstable<D: DiskModel>(&self, disk: &D) -> bool {
+        // Critical values from linear stability analysis
+        const Q_CRIT: f64 = 1.5; // Conservative value between 1.0 and 2.0
+        const RI_CRIT: f64 = 0.25; // Classic Richardson criterion
+
+        let q = self.toomre_q(disk);
+        let ri = self.richardson_number(disk);
+
+        // Must satisfy both conditions:
+        // 1. Gravitationally unstable (low Q)
+        // 2. Shear stable (high Ri)
+        q < Q_CRIT && ri > RI_CRIT
+    }
 }

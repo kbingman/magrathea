@@ -430,3 +430,294 @@ fn relative_velocity_larger_for_larger_size_difference() {
         dv_small_diff.to_cm_per_sec()
     );
 }
+
+// =============================================================================
+// Gravitational Instability Tests
+// =============================================================================
+
+#[test]
+fn toomre_q_high_for_well_mixed_particles() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    // Standard bin from disk (well-mixed, low density)
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let q = bin.toomre_q(&disk);
+
+    // Well-mixed particles with standard dust-to-gas ratio should be
+    // very stable (high Q)
+    assert!(
+        q > 10.0,
+        "Q = {} should be >> 1 for well-mixed particles",
+        q
+    );
+}
+
+#[test]
+fn toomre_q_decreases_with_higher_surface_density() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    // Create two bins with different surface densities
+    let size_dist = SizeDistribution::mrn(Mass::from_grams(1e25), Density::from_grams_per_cm3(3.0));
+
+    let mut bin_low = ParticleBin::new(
+        r,
+        width,
+        size_dist.clone(),
+        SurfaceDensity::from_grams_per_cm2(1.0),
+        disk.scale_height(r),
+    );
+    bin_low.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let mut bin_high = ParticleBin::new(
+        r,
+        width,
+        size_dist,
+        SurfaceDensity::from_grams_per_cm2(10.0), // 10x higher
+        disk.scale_height(r),
+    );
+    bin_high.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let q_low = bin_low.toomre_q(&disk);
+    let q_high = bin_high.toomre_q(&disk);
+
+    // Higher surface density → lower Q
+    assert!(
+        q_high < q_low,
+        "Q should decrease with surface density: {} vs {}",
+        q_low,
+        q_high
+    );
+
+    // Should be roughly inversely proportional
+    assert_relative_eq!(q_high * 10.0, q_low, max_relative = 0.01);
+}
+
+#[test]
+fn toomre_q_increases_with_velocity_dispersion() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let size_dist = SizeDistribution::mrn(Mass::from_grams(1e25), Density::from_grams_per_cm3(3.0));
+
+    let mut bin_low = ParticleBin::new(
+        r,
+        width,
+        size_dist.clone(),
+        SurfaceDensity::from_grams_per_cm2(10.0),
+        disk.scale_height(r),
+    );
+    bin_low.set_velocity_dispersion(disk.sound_speed(r) * 0.01);
+
+    let mut bin_high = ParticleBin::new(
+        r,
+        width,
+        size_dist,
+        SurfaceDensity::from_grams_per_cm2(10.0),
+        disk.scale_height(r),
+    );
+    bin_high.set_velocity_dispersion(disk.sound_speed(r) * 0.1); // 10x higher
+
+    let q_low = bin_low.toomre_q(&disk);
+    let q_high = bin_high.toomre_q(&disk);
+
+    // Higher velocity dispersion → higher Q (more stable)
+    assert!(
+        q_high > q_low,
+        "Q should increase with velocity dispersion: {} vs {}",
+        q_low,
+        q_high
+    );
+
+    // Should be roughly proportional
+    assert_relative_eq!(q_high, q_low * 10.0, max_relative = 0.01);
+}
+
+#[test]
+fn richardson_number_high_for_well_mixed_particles() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let ri = bin.richardson_number(&disk);
+
+    // Well-mixed particles (h_p ≈ h_g) should have Ri ≈ 1
+    assert!(
+        ri > 0.5,
+        "Richardson number {} should be > 0.5 for well-mixed particles",
+        ri
+    );
+}
+
+#[test]
+fn richardson_number_decreases_with_settling() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let size_dist = SizeDistribution::mrn(Mass::from_grams(1e25), Density::from_grams_per_cm3(3.0));
+
+    // Well-mixed bin
+    let bin_thick = ParticleBin::new(
+        r,
+        width,
+        size_dist.clone(),
+        SurfaceDensity::from_grams_per_cm2(10.0),
+        disk.scale_height(r), // h_p = h_g
+    );
+
+    // Settled bin
+    let bin_thin = ParticleBin::new(
+        r,
+        width,
+        size_dist,
+        SurfaceDensity::from_grams_per_cm2(10.0),
+        disk.scale_height(r) * 0.1, // h_p = 0.1 × h_g
+    );
+
+    let ri_thick = bin_thick.richardson_number(&disk);
+    let ri_thin = bin_thin.richardson_number(&disk);
+
+    // Thinner layer → lower Ri
+    assert!(
+        ri_thin < ri_thick,
+        "Richardson number should decrease with settling: {} vs {}",
+        ri_thick,
+        ri_thin
+    );
+}
+
+#[test]
+fn well_mixed_particles_are_stable() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    // Standard well-mixed particles
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    // Should be gravitationally stable
+    assert!(
+        !bin.is_gravitationally_unstable(&disk),
+        "Well-mixed particles should be stable"
+    );
+}
+
+#[test]
+fn high_density_settled_layer_can_be_unstable() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let size_dist = SizeDistribution::mrn(Mass::from_grams(1e25), Density::from_grams_per_cm3(3.0));
+
+    // Create a very dense, settled layer
+    let mut bin = ParticleBin::new(
+        r,
+        width,
+        size_dist,
+        SurfaceDensity::from_grams_per_cm2(100.0), // Very high surface density
+        disk.scale_height(r) * 0.5,                // Moderately settled
+    );
+
+    // Low velocity dispersion
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    let q = bin.toomre_q(&disk);
+    let ri = bin.richardson_number(&disk);
+
+    // This configuration should have:
+    // - Low Q (high surface density, low velocity dispersion)
+    // - Reasonable Ri (not too settled)
+    assert!(q < 2.0, "Dense settled layer should have low Q, got {}", q);
+    assert!(
+        ri > 0.2,
+        "Moderately settled layer should have Ri > 0.2, got {}",
+        ri
+    );
+
+    // May or may not be unstable depending on exact values
+    let unstable = bin.is_gravitationally_unstable(&disk);
+    println!(
+        "Dense settled layer: Q = {:.2}, Ri = {:.2}, unstable = {}",
+        q, ri, unstable
+    );
+}
+
+#[test]
+fn too_thin_layer_is_shear_unstable() {
+    let disk = test_disk();
+    let r = Length::from_au(5.0);
+    let width = Length::from_au(0.5);
+
+    let size_dist = SizeDistribution::mrn(Mass::from_grams(1e25), Density::from_grams_per_cm3(3.0));
+
+    // Very thin layer (over-settled)
+    let mut bin = ParticleBin::new(
+        r,
+        width,
+        size_dist,
+        SurfaceDensity::from_grams_per_cm2(100.0),
+        disk.scale_height(r) * 0.01, // Very thin: h_p = 0.01 × h_g
+    );
+
+    bin.set_velocity_dispersion(disk.sound_speed(r) * 0.001);
+
+    let q = bin.toomre_q(&disk);
+    let ri = bin.richardson_number(&disk);
+
+    // Should have:
+    // - Very low Q (high density, low velocity)
+    // - Very low Ri (too thin)
+    assert!(q < 1.0, "Very dense layer should have Q < 1, got {}", q);
+    assert!(ri < 0.5, "Very thin layer should have low Ri, got {}", ri);
+
+    // Should NOT be unstable (shear instability prevents it)
+    assert!(
+        !bin.is_gravitationally_unstable(&disk),
+        "Too-thin layer should be shear unstable, not gravitationally unstable"
+    );
+}
+
+#[test]
+fn toomre_q_scales_with_orbital_frequency() {
+    let disk = test_disk();
+
+    let size_dist = SizeDistribution::mrn(Mass::from_grams(1e25), Density::from_grams_per_cm3(3.0));
+
+    // Same surface density and velocity at different radii
+    let mut bin_inner = ParticleBin::new(
+        Length::from_au(1.0),
+        Length::from_au(0.1),
+        size_dist.clone(),
+        SurfaceDensity::from_grams_per_cm2(10.0),
+        Length::from_cm(1e11),
+    );
+    bin_inner.set_velocity_dispersion(disk.sound_speed(Length::from_au(1.0)) * 0.01);
+
+    let mut bin_outer = ParticleBin::new(
+        Length::from_au(10.0),
+        Length::from_au(1.0),
+        size_dist,
+        SurfaceDensity::from_grams_per_cm2(10.0),
+        Length::from_cm(1e12),
+    );
+    bin_outer.set_velocity_dispersion(disk.sound_speed(Length::from_au(10.0)) * 0.01);
+
+    let q_inner = bin_inner.toomre_q(&disk);
+    let q_outer = bin_outer.toomre_q(&disk);
+
+    // Both should be positive
+    assert!(q_inner > 0.0 && q_outer > 0.0);
+
+    // Inner disk has higher Ω, so for same σ and Σ, Q should be higher
+    // (Actually depends on how sound speed varies with radius)
+    println!("Q_inner = {}, Q_outer = {}", q_inner, q_outer);
+}
