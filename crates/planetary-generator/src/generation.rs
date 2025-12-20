@@ -71,7 +71,7 @@ struct StellarContext {
     /// Stellar metallicity [Fe/H] in dex
     metallicity: f64,
     /// Binary configuration if this is a binary system
-    binary_config: Option<stellar_forge::BinaryConfiguration>,
+    binary_config: Option<crate::binary::BinaryConfiguration>,
 }
 
 impl StellarContext {
@@ -79,7 +79,7 @@ impl StellarContext {
         mass: f64,
         luminosity: f64,
         metallicity: f64,
-        binary_config: Option<stellar_forge::BinaryConfiguration>,
+        binary_config: Option<crate::binary::BinaryConfiguration>,
     ) -> Self {
         Self {
             mass,
@@ -214,11 +214,11 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
     let spectral_type = star.spectral_type_string();
 
     // Check if this should be a binary system
-    let binary_fraction = stellar_forge::binary::binary_fraction(stellar_mass);
+    let binary_fraction = crate::binary::binary_fraction(stellar_mass);
     let is_binary: bool = rng.random::<f64>() < binary_fraction;
 
     let (stars, binary_config) = if is_binary {
-        let (secondary, config) = stellar_forge::binary::generate_companion(&mut rng, &star);
+        let (secondary, config) = crate::binary::generate_companion(&mut rng, &star);
         (vec![star, secondary], Some(config))
     } else {
         (vec![star], None)

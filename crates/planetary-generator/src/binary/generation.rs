@@ -8,9 +8,9 @@
 //! - Duchêne & Kraus (2013) - "Stellar Multiplicity"
 //! - Moe & Di Stefano (2017) - "Mind Your Ps and Qs: The Interplay of Stellar and Planetary Multiplicity"
 
-use super::orbital_params::{BinaryConfiguration, BinaryOrbitType, OrbitalParameters};
 use rand::Rng;
 use rand_chacha::ChaChaRng;
+use star_system::binary::{BinaryConfiguration, BinaryOrbitType, OrbitalParameters};
 use stellar::{StellarObject, sampling::sample_age_from_population, stellar_object};
 use units::{Length, Time};
 
@@ -169,7 +169,7 @@ fn calculate_period(semi_major_axis_au: f64, total_mass_solar: f64) -> f64 {
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
 /// use stellar::stellar_object;
-/// use stellar_forge::binary::generation::generate_companion;
+/// use planetary_generator::binary::generation::generate_companion;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let primary = stellar_object(&mut rng, 1.0, 5e9, 0.0);
@@ -249,7 +249,7 @@ pub fn generate_companion(
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use stellar_forge::binary::generation::generate_binary_system;
+/// use planetary_generator::binary::generation::generate_binary_system;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let (primary, secondary, config) = generate_binary_system(

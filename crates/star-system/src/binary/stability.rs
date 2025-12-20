@@ -130,7 +130,7 @@ pub fn p_type_stability_limit(
 ///
 /// # Example
 /// ```
-/// use stellar_forge::binary::{OrbitalParameters, BinaryOrbitType, stable_orbital_range};
+/// use star_system::binary::{OrbitalParameters, BinaryOrbitType, stable_orbital_range};
 /// use stellar::{StellarObject, main_sequence_star};
 /// use units::{Length, Time};
 ///

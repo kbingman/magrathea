@@ -71,7 +71,7 @@ pub struct SystemMetadata {
     /// Defines the orbital parameters of the binary and the type of planetary
     /// orbits (S-type around one star, or P-type circumbinary).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub binary_config: Option<stellar_forge::BinaryConfiguration>,
+    pub binary_config: Option<crate::binary::BinaryConfiguration>,
 }
 
 /// Generate a catalog designation from a UUID
@@ -240,8 +240,14 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
-    /// use stellar_forge::{BinaryConfiguration, BinaryOrbitType, OrbitalParameters};
+    /// use star_system::{
+    ///     SystemMetadata,
+    ///     GenerationMethod,
+    ///     SystemArchitecture,
+    ///     BinaryConfiguration,
+    ///     BinaryOrbitType,
+    ///     OrbitalParameters
+    /// };
     /// use units::{Length, Time};
     ///
     /// let orbit = OrbitalParameters {
@@ -266,7 +272,7 @@ impl SystemMetadata {
     ///
     /// assert!(meta.binary_config.is_some());
     /// ```
-    pub fn with_binary_config(mut self, config: stellar_forge::BinaryConfiguration) -> Self {
+    pub fn with_binary_config(mut self, config: crate::binary::BinaryConfiguration) -> Self {
         self.binary_config = Some(config);
         self
     }

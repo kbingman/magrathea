@@ -2,7 +2,6 @@
 //!
 //! This crate provides types and generation functions for stars and stellar remnants.
 
-pub mod binary;
 pub mod disk;
 pub mod particles;
 
@@ -21,6 +20,5 @@ pub use stellar::{
     sample_stellar_object, solar_analog, stellar_object, white_dwarf,
 };
 
-pub use binary::{BinaryConfiguration, BinaryOrbitType, OrbitalParameters};
 pub use disk::{DiskMass, DiskModel, GasDisk, GridDisk};
 pub use particles::{DragRegime, Particle, ParticleBin, SizeDistribution};

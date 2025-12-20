@@ -4,11 +4,16 @@
 //! statistical sampling, stellar-forge formation simulation, and manual construction.
 
 pub mod architecture;
+pub mod binary;
 pub mod metadata;
 pub mod system;
 
 // Re-export main types at crate root
 pub use architecture::SystemArchitecture;
+pub use binary::{
+    BinaryConfiguration, BinaryOrbitType, OrbitalParameters, habitable_zone,
+    p_type_stability_limit, s_type_stability_limit, stable_orbital_range,
+};
 pub use metadata::{GenerationMethod, SystemMetadata};
 pub use system::{HabitableZone, PlanetarySystem, snow_line};
 
