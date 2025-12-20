@@ -426,6 +426,7 @@ dependencies = [
  "serde",
  "star-system",
  "stellar",
+ "stellar_forge",
  "units",
  "uuid",
 ]

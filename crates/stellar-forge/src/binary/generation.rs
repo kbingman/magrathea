@@ -150,6 +150,83 @@ fn calculate_period(semi_major_axis_au: f64, total_mass_solar: f64) -> f64 {
     (semi_major_axis_au.powi(3) / total_mass_solar).sqrt()
 }
 
+/// Generate a binary companion for an existing primary star
+///
+/// Given a primary star, generates a companion with appropriate mass ratio,
+/// orbital parameters, and age from the same stellar population.
+///
+/// # Arguments
+/// * `rng` - Random number generator
+/// * `primary` - The primary stellar object
+///
+/// # Returns
+/// A tuple containing:
+/// - Secondary `StellarObject`
+/// - `BinaryConfiguration` with orbital parameters
+///
+/// # Example
+/// ```
+/// use rand_chacha::ChaChaRng;
+/// use rand::SeedableRng;
+/// use stellar::stellar_object;
+/// use stellar_forge::binary::generation::generate_companion;
+///
+/// let mut rng = ChaChaRng::seed_from_u64(42);
+/// let primary = stellar_object(&mut rng, 1.0, 5e9, 0.0);
+/// let (secondary, config) = generate_companion(&mut rng, &primary);
+/// ```
+pub fn generate_companion(
+    rng: &mut ChaChaRng,
+    primary: &StellarObject,
+) -> (StellarObject, BinaryConfiguration) {
+    let primary_mass = primary.mass().to_solar_masses();
+    let metallicity = primary.metallicity();
+
+    // Get primary age in years, or use a default 5 Gyr if not available
+    let primary_age_years = primary.age().map(|t| t.to_years()).unwrap_or(5e9);
+
+    // Sample binary parameters
+    let mass_ratio = sample_mass_ratio(rng, primary_mass);
+    let secondary_mass = primary_mass * mass_ratio;
+    let total_mass = primary_mass + secondary_mass;
+
+    // Sample separation and calculate period
+    let semi_major_axis_au = sample_separation(rng, primary_mass);
+    let period_years = calculate_period(semi_major_axis_au, total_mass);
+
+    // Sample eccentricity
+    let eccentricity = sample_binary_eccentricity(rng, period_years);
+
+    // Sample random orbital angles (isotropic distribution)
+    let inclination = sample_inclination(rng);
+    let longitude_of_ascending_node = rng.random_range(0.0..360.0);
+    let argument_of_periapsis = rng.random_range(0.0..360.0);
+    let mean_anomaly = rng.random_range(0.0..360.0);
+
+    // Generate secondary with same age as primary (coeval formation)
+    let secondary = stellar_object(rng, secondary_mass, primary_age_years, metallicity);
+
+    // Determine default orbit type (S-type around primary for planet hosting)
+    let orbit_type = BinaryOrbitType::STypePrimary;
+
+    let orbital_params = OrbitalParameters {
+        semi_major_axis: Length::from_au(semi_major_axis_au),
+        eccentricity,
+        inclination,
+        longitude_of_ascending_node,
+        argument_of_periapsis,
+        mean_anomaly,
+        period: Time::from_years(period_years),
+    };
+
+    let config = BinaryConfiguration {
+        orbit_type,
+        orbital_params,
+    };
+
+    (secondary, config)
+}
+
 /// Generate a complete binary star system
 ///
 /// Creates two stars with orbital parameters sampled from observational distributions.

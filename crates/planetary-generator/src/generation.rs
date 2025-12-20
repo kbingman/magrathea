@@ -62,7 +62,7 @@ const MIN_STELLAR_MASS_FOR_GIANTS: f64 = 0.25;
 /// Stellar properties needed for planet generation
 ///
 /// Groups stellar attributes to reduce function parameter counts.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct StellarContext {
     /// Stellar mass in solar masses (M☉)
     mass: f64,
@@ -70,20 +70,50 @@ struct StellarContext {
     luminosity: f64,
     /// Stellar metallicity [Fe/H] in dex
     metallicity: f64,
+    /// Binary configuration if this is a binary system
+    binary_config: Option<stellar_forge::BinaryConfiguration>,
 }
 
 impl StellarContext {
-    fn new(mass: f64, luminosity: f64, metallicity: f64) -> Self {
+    fn new(
+        mass: f64,
+        luminosity: f64,
+        metallicity: f64,
+        binary_config: Option<stellar_forge::BinaryConfiguration>,
+    ) -> Self {
         Self {
             mass,
             luminosity,
             metallicity,
+            binary_config,
         }
     }
 
     /// Snow line distance in AU
     fn snow_line(&self) -> f64 {
         snow_line(self.luminosity)
+    }
+
+    /// Get stable orbital range for planets in AU
+    ///
+    /// For single stars, returns (0.01, 1000.0).
+    /// For binary systems, returns stability-limited range based on binary separation.
+    fn stable_orbital_range(&self) -> (f64, f64) {
+        match &self.binary_config {
+            Some(config) => {
+                // Get binary separation and companion mass
+                let separation_au = config.orbital_params.semi_major_axis.to_au();
+                let eccentricity = config.orbital_params.eccentricity;
+
+                // For now, use a conservative estimate: planets stable within ~1/3 of binary separation
+                // This is a simplified version - the stability module has more detailed calculations
+                // but requires both stellar masses which we don't have readily available here
+                let stable_limit = separation_au * (1.0 - eccentricity) * 0.3;
+
+                (0.01, stable_limit)
+            }
+            None => (0.01, 1000.0), // Single star: wide stable range
+        }
     }
 
     /// Maximum planet mass in Earth masses based on stellar mass
@@ -156,6 +186,11 @@ impl StellarContext {
 /// The UUID serves as both the system identifier and the source for the RNG seed,
 /// ensuring reproducible generation.
 ///
+/// This function handles both single and binary star systems:
+/// - Checks if the star should be in a binary based on mass-dependent binary fraction
+/// - If binary, generates a companion star and stores binary configuration
+/// - Applies orbital stability limits for planetary orbits in binary systems
+///
 /// # Arguments
 /// * `star` - The stellar host (wrapped in StellarObject)
 /// * `id` - UUID for identification and RNG seed derivation
@@ -178,7 +213,23 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
     let stellar_metallicity = star.metallicity();
     let spectral_type = star.spectral_type_string();
 
-    let ctx = StellarContext::new(stellar_mass, stellar_luminosity, stellar_metallicity);
+    // Check if this should be a binary system
+    let binary_fraction = stellar_forge::binary::binary_fraction(stellar_mass);
+    let is_binary: bool = rng.random::<f64>() < binary_fraction;
+
+    let (stars, binary_config) = if is_binary {
+        let (secondary, config) = stellar_forge::binary::generate_companion(&mut rng, &star);
+        (vec![star, secondary], Some(config))
+    } else {
+        (vec![star], None)
+    };
+
+    let ctx = StellarContext::new(
+        stellar_mass,
+        stellar_luminosity,
+        stellar_metallicity,
+        binary_config.clone(),
+    );
     let architecture =
         SystemArchitecture::sample(&mut rng, &spectral_type, stellar_mass, stellar_metallicity);
 
@@ -189,9 +240,12 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
         SystemArchitecture::Sparse => generate_sparse_system(&mut rng, &ctx),
     };
 
-    let metadata = SystemMetadata::with_id(id, GenerationMethod::Statistical, architecture);
+    let mut metadata = SystemMetadata::with_id(id, GenerationMethod::Statistical, architecture);
+    if let Some(config) = binary_config {
+        metadata = metadata.with_binary_config(config);
+    }
 
-    PlanetarySystem::new(vec![star], planets, metadata)
+    PlanetarySystem::new(stars, planets, metadata)
 }
 
 /// Generate a planetary system with a random UUID
@@ -313,7 +367,11 @@ fn generate_compact_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
     let hz = HabitableZone::from_luminosity(star.luminosity);
 
     let inner_au = 0.01 * star.luminosity.sqrt();
-    let outer_au = hz.outer_edge * 1.5;
+    let outer_au_nominal = hz.outer_edge * 1.5;
+
+    // Apply stability limits for binary systems
+    let (_, max_stable_au) = star.stable_orbital_range();
+    let outer_au = outer_au_nominal.min(max_stable_au);
 
     let mut planets =
         generate_n_spaced_planets(rng, star, n_planets, inner_au, outer_au, 0.01..5.0);
@@ -470,28 +528,41 @@ fn generate_outer_system(
 ) -> Vec<Planet> {
     let mut planets = Vec::new();
     let sl = star.snow_line();
+    let (_, max_stable_au) = star.stable_orbital_range();
 
     // Cold giant(s) in the Jupiter zone (1.5-6× snow line)
-    // Strong metallicity dependence: P(giant) ∝ 10^(2×[Fe/H])
-    // Also scales with stellar mass: Johnson+ 2010 found P(giant) ∝ M_star^1-1.5
-    let metallicity_boost = 10.0_f64.powf(2.0 * star.metallicity);
-    let stellar_mass_scaling = star.giant_occurrence_scaling();
-    let cold_giant_prob =
-        (COLD_GIANT_BASE_RATE * cold_giant_modifier * metallicity_boost * stellar_mass_scaling)
-            .min(0.9);
+    // Skip if binary companion is too close
+    let cold_giant_inner = sl * 1.5;
+    let cold_giant_outer = (sl * 6.0).min(max_stable_au);
 
-    let giant_roll = rng.random::<f64>();
-    if giant_roll < cold_giant_prob {
-        // Of systems with cold giants: ~70% have 1, ~30% have 2
-        let n_giants = if giant_roll < cold_giant_prob * 0.3 {
-            2
-        } else {
-            1
-        };
+    if cold_giant_outer > cold_giant_inner {
+        // Strong metallicity dependence: P(giant) ∝ 10^(2×[Fe/H])
+        // Also scales with stellar mass: Johnson+ 2010 found P(giant) ∝ M_star^1-1.5
+        let metallicity_boost = 10.0_f64.powf(2.0 * star.metallicity);
+        let stellar_mass_scaling = star.giant_occurrence_scaling();
+        let cold_giant_prob =
+            (COLD_GIANT_BASE_RATE * cold_giant_modifier * metallicity_boost * stellar_mass_scaling)
+                .min(0.9);
 
-        let giants =
-            generate_n_spaced_planets(rng, star, n_giants, sl * 1.5, sl * 6.0, 80.0..800.0);
-        planets.extend(giants);
+        let giant_roll = rng.random::<f64>();
+        if giant_roll < cold_giant_prob {
+            // Of systems with cold giants: ~70% have 1, ~30% have 2
+            let n_giants = if giant_roll < cold_giant_prob * 0.3 {
+                2
+            } else {
+                1
+            };
+
+            let giants = generate_n_spaced_planets(
+                rng,
+                star,
+                n_giants,
+                cold_giant_inner,
+                cold_giant_outer,
+                80.0..800.0,
+            );
+            planets.extend(giants);
+        }
     }
 
     // Ice giants in the outer zone (5-15× snow line)
@@ -546,11 +617,17 @@ fn generate_ice_giants(
     }
 
     let sl = star.snow_line();
+    let (_, max_stable_au) = star.stable_orbital_range();
 
     // Ice giant zone: 5-15× snow line
     // Uranus ~19 AU (~7× SL), Neptune ~30 AU (~11× SL) for our solar system
     let inner_ice = sl * 5.0;
-    let outer_ice = sl * 15.0;
+    let outer_ice = (sl * 15.0).min(max_stable_au);
+
+    // Skip if binary companion prevents ice giant formation
+    if outer_ice <= inner_ice {
+        return vec![];
+    }
 
     // Multiplicity: 50% have 1, 40% have 2, 10% have 3
     let n_ice_giants = match rng.random::<f64>() {
@@ -560,7 +637,7 @@ fn generate_ice_giants(
     };
 
     // Use a zero-metallicity context for ice giants (weak metallicity dependence)
-    let ice_star = StellarContext::new(star.mass, star.luminosity, 0.0);
+    let ice_star = StellarContext::new(star.mass, star.luminosity, 0.0, star.binary_config.clone());
     generate_n_spaced_planets(
         rng,
         &ice_star,
@@ -592,10 +669,18 @@ fn generate_wide_companion(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
         return vec![];
     }
 
+    let (_, max_stable_au) = star.stable_orbital_range();
+
     // Wide companion zone: 50-300 AU
     // Semi-major axis follows roughly log-uniform distribution
     let inner_wide: f64 = 50.0;
-    let outer_wide: f64 = 300.0;
+    let outer_wide: f64 = 300.0_f64.min(max_stable_au);
+
+    // Skip if binary companion prevents wide companion formation
+    if outer_wide <= inner_wide {
+        return vec![];
+    }
+
     let log_inner = inner_wide.ln();
     let log_outer = outer_wide.ln();
     let sma = (log_inner + rng.random::<f64>() * (log_outer - log_inner)).exp();
@@ -660,11 +745,17 @@ fn generate_tnos(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
     }
 
     let sl = star.snow_line();
+    let (_, max_stable_au) = star.stable_orbital_range();
 
     // Kuiper Belt zone: ~10-40× snow line
     // For Sun: 30-100 AU
     let inner_kb = sl * 10.0;
-    let outer_kb = sl * 40.0;
+    let outer_kb = (sl * 40.0).min(max_stable_au);
+
+    // Skip if binary companion prevents TNO formation
+    if outer_kb <= inner_kb {
+        return vec![];
+    }
 
     let mut tnos = Vec::new();
 

@@ -12,8 +12,8 @@ pub mod orbital_params;
 pub mod stability;
 
 pub use generation::{
-    binary_fraction, generate_binary_system, sample_binary_eccentricity, sample_mass_ratio,
-    sample_separation,
+    binary_fraction, generate_binary_system, generate_companion, sample_binary_eccentricity,
+    sample_mass_ratio, sample_separation,
 };
 pub use orbital_params::{BinaryConfiguration, BinaryOrbitType, OrbitalParameters};
 pub use stability::{
