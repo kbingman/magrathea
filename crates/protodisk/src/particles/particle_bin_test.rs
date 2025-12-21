@@ -1025,3 +1025,148 @@ fn multiple_formation_events_deplete_bin() {
     // Bin should be significantly depleted
     assert!(final_mass < initial_mass * 0.5);
 }
+
+// ===== Protoplanet-Particle Interaction Tests =====
+
+#[test]
+fn viscous_stirring_increases_with_protoplanet_mass() {
+    use crate::disk::GasDisk;
+    use units::{Length, Mass};
+
+    let disk = GasDisk::mmsn();
+    let r = Length::from_au(1.0);
+    let width = Length::from_au(0.1);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let small_planet = Mass::from_earth_masses(0.1);
+    let large_planet = Mass::from_earth_masses(10.0);
+    let stellar_mass = Mass::from_solar_masses(1.0);
+
+    let dsigma2_dt_small = bin.viscous_stirring_rate(small_planet, r, stellar_mass);
+    let dsigma2_dt_large = bin.viscous_stirring_rate(large_planet, r, stellar_mass);
+
+    assert!(
+        dsigma2_dt_large > dsigma2_dt_small,
+        "Larger protoplanet should stir particles more"
+    );
+
+    // Should scale as M_p²
+    let mass_ratio = large_planet / small_planet;
+    let stirring_ratio = dsigma2_dt_large / dsigma2_dt_small;
+    assert!(
+        (stirring_ratio / (mass_ratio * mass_ratio) - 1.0).abs() < 0.01,
+        "Stirring should scale as M_p²"
+    );
+}
+
+#[test]
+fn viscous_stirring_rate_positive() {
+    use crate::disk::GasDisk;
+    use units::{Length, Mass};
+
+    let disk = GasDisk::mmsn();
+    let r = Length::from_au(1.0);
+    let width = Length::from_au(0.1);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let planet = Mass::from_earth_masses(1.0);
+    let stellar_mass = Mass::from_solar_masses(1.0);
+
+    let dsigma2_dt = bin.viscous_stirring_rate(planet, r, stellar_mass);
+
+    assert!(dsigma2_dt > 0.0, "Viscous stirring rate should be positive");
+}
+
+#[test]
+fn dynamical_friction_damps_eccentricity() {
+    use crate::disk::GasDisk;
+    use units::{Length, Mass};
+
+    let disk = GasDisk::mmsn();
+    let r = Length::from_au(1.0);
+    let width = Length::from_au(0.1);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let planet = Mass::from_earth_masses(0.1); // Small planet
+    let stellar_mass = Mass::from_solar_masses(1.0);
+
+    let (de_dt, di_dt) = bin.dynamical_friction_on(planet, r, stellar_mass);
+
+    assert!(de_dt > 0.0, "Eccentricity damping rate should be positive");
+    assert!(di_dt > 0.0, "Inclination damping rate should be positive");
+}
+
+#[test]
+fn dynamical_friction_stronger_for_smaller_planets() {
+    use crate::disk::GasDisk;
+    use units::{Length, Mass};
+
+    let disk = GasDisk::mmsn();
+    let r = Length::from_au(1.0);
+    let width = Length::from_au(0.1);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let small_planet = Mass::from_earth_masses(0.1);
+    let large_planet = Mass::from_earth_masses(10.0);
+    let stellar_mass = Mass::from_solar_masses(1.0);
+
+    let (de_dt_small, _) = bin.dynamical_friction_on(small_planet, r, stellar_mass);
+    let (de_dt_large, _) = bin.dynamical_friction_on(large_planet, r, stellar_mass);
+
+    assert!(
+        de_dt_small > de_dt_large,
+        "Smaller planet should experience stronger damping (swarm mass / planet mass larger)"
+    );
+}
+
+#[test]
+fn dynamical_friction_scales_inversely_with_mass() {
+    use crate::disk::GasDisk;
+    use units::{Length, Mass};
+
+    let disk = GasDisk::mmsn();
+    let r = Length::from_au(1.0);
+    let width = Length::from_au(0.1);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let planet1 = Mass::from_earth_masses(1.0);
+    let planet2 = Mass::from_earth_masses(10.0);
+    let stellar_mass = Mass::from_solar_masses(1.0);
+
+    let (de_dt1, _) = bin.dynamical_friction_on(planet1, r, stellar_mass);
+    let (de_dt2, _) = bin.dynamical_friction_on(planet2, r, stellar_mass);
+
+    // Damping ∝ M_swarm / M_p, so de_dt ∝ 1 / M_p
+    let mass_ratio = planet2 / planet1; // = 10
+    let damping_ratio = de_dt1 / de_dt2; // Should also ≈ 10
+
+    assert!(
+        (damping_ratio / mass_ratio - 1.0).abs() < 0.01,
+        "Damping should scale inversely with planet mass"
+    );
+}
+
+#[test]
+fn dynamical_friction_zero_for_zero_mass() {
+    use crate::disk::GasDisk;
+    use units::{Length, Mass};
+
+    let disk = GasDisk::mmsn();
+    let r = Length::from_au(1.0);
+    let width = Length::from_au(0.1);
+
+    let bin = ParticleBin::from_disk(&disk, r, width);
+
+    let zero_planet = Mass::zero();
+    let stellar_mass = Mass::from_solar_masses(1.0);
+
+    let (de_dt, di_dt) = bin.dynamical_friction_on(zero_planet, r, stellar_mass);
+
+    assert_eq!(de_dt, 0.0, "Zero mass planet should have zero damping");
+    assert_eq!(di_dt, 0.0, "Zero mass planet should have zero damping");
+}

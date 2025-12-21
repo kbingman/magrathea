@@ -2,6 +2,7 @@
 //!
 //! This crate provides types and generation functions for stars and stellar remnants.
 
+pub mod bodies;
 pub mod disk;
 pub mod particles;
 
@@ -20,5 +21,8 @@ pub use stellar::{
     sample_stellar_object, solar_analog, stellar_object, white_dwarf,
 };
 
+pub use bodies::{
+    DiscreteBody, OrbitalElements, cartesian_to_orbital_elements, orbital_elements_to_cartesian,
+};
 pub use disk::{DiskMass, DiskModel, GasDisk, GridDisk};
 pub use particles::{DragRegime, Particle, ParticleBin, SizeDistribution};

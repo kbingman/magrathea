@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
+nalgebra = { version = "0.34.1", features = ["serde-serialize"] }
 rand = "0.9.2"
 rand_chacha = "0.9.0"
 rand_distr = "0.5.1"
@@ -12,6 +13,8 @@ serde = "1.0.228"
 serde_json = "1.0"
 ts-rs = "10.0"
 
+nbody = { path = "../nbody" }
+planetary = { path = "../planetary" }
 stellar = { path = "../stellar" }
 units = { path = "../units" }
 

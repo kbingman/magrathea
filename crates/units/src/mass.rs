@@ -119,6 +119,26 @@ impl Mass {
         Self::from_grams(value * 1000.0)
     }
 
+    /// Creates a zero mass value.
+    ///
+    /// This is a convenience method for creating a mass of zero, commonly used
+    /// when initializing variables or representing the absence of mass.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use units::Mass;
+    ///
+    /// let no_mass = Mass::zero();
+    /// assert_eq!(no_mass.to_solar_masses(), 0.0);
+    ///
+    /// let total = Mass::from_earth_masses(10.0) + Mass::zero();
+    /// assert_eq!(total.to_earth_masses(), 10.0);
+    /// ```
+    pub fn zero() -> Self {
+        Self(0.0)
+    }
+
     /// Returns the mass value in solar masses.
     ///
     /// Since solar masses are the base unit, this simply returns the stored value.

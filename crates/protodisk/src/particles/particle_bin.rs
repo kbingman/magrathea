@@ -894,4 +894,113 @@ impl ParticleBin {
 
         Some(event)
     }
+
+    // ===== Protoplanet-Particle Interactions =====
+
+    /// Rate of velocity dispersion increase due to gravitational scattering.
+    ///
+    /// When a massive protoplanet orbits through a particle swarm, gravitational
+    /// encounters stir up the particles' random velocities. This is the primary
+    /// mechanism that drives the transition from runaway to oligarchic growth.
+    ///
+    /// dσ²/dt ≈ (M_p / M*)² × Ω³ × a²
+    ///
+    /// where:
+    /// - M_p is the protoplanet mass
+    /// - M* is the stellar mass
+    /// - Ω is the orbital frequency
+    /// - a is the semi-major axis
+    ///
+    /// # Arguments
+    /// * `protoplanet_mass` - Mass of the perturbing body
+    /// * `protoplanet_sma` - Semi-major axis of the protoplanet
+    /// * `stellar_mass` - Mass of the central star
+    ///
+    /// # Returns
+    /// Rate of change of velocity dispersion squared (cm²/s² per year)
+    ///
+    /// # References
+    /// - Armitage (2010) - §6.3, Viscous stirring
+    /// - Ida & Makino (1993) - Scattering of planetesimals by a protoplanet
+    pub fn viscous_stirring_rate(
+        &self,
+        protoplanet_mass: Mass,
+        protoplanet_sma: Length,
+        stellar_mass: Mass,
+    ) -> f64 {
+        // Gravitational constant in AU³ M☉⁻¹ year⁻²
+        const G: f64 = 39.478417;
+
+        let m_p = protoplanet_mass.to_solar_masses();
+        let m_star = stellar_mass.to_solar_masses();
+        let a_au = protoplanet_sma.to_au();
+
+        // Orbital frequency: Ω = √(GM/a³)
+        let omega = (G * m_star / a_au.powi(3)).sqrt(); // radians/year
+
+        // dσ²/dt ≈ (M_p / M*)² × Ω³ × a²
+        // Result in AU²/year² (which is cm²/s² in appropriate units)
+        let mass_ratio = m_p / m_star;
+        let dsigma2_dt = mass_ratio * mass_ratio * omega.powi(3) * a_au * a_au;
+
+        // Convert to cm²/s² per year for consistency with velocity_dispersion units
+        const AU_TO_CM: f64 = 1.496e13;
+        const YEAR_TO_SEC: f64 = 3.156e7;
+        dsigma2_dt * AU_TO_CM * AU_TO_CM / (YEAR_TO_SEC * YEAR_TO_SEC)
+    }
+
+    /// Dynamical friction on a protoplanet from the particle swarm.
+    ///
+    /// Particles exert a drag force on the protoplanet, causing its
+    /// eccentricity and inclination to damp on a timescale proportional
+    /// to the mass ratio between the swarm and the protoplanet.
+    ///
+    /// Returns (de/dt, di/dt) where:
+    /// - de/dt is the rate of eccentricity damping (1/year)
+    /// - di/dt is the rate of inclination damping (1/year)
+    ///
+    /// τ_damp ≈ M_p / (M_swarm × Ω)
+    ///
+    /// # Arguments
+    /// * `protoplanet_mass` - Mass of the body being damped
+    /// * `protoplanet_sma` - Semi-major axis of the protoplanet
+    /// * `stellar_mass` - Mass of the central star
+    ///
+    /// # Returns
+    /// Tuple of (de/dt, di/dt) in units of 1/year
+    ///
+    /// # References
+    /// - Armitage (2010) - §6.3, Dynamical friction
+    /// - Tanaka & Ward (2004) - Three-dimensional interaction
+    pub fn dynamical_friction_on(
+        &self,
+        protoplanet_mass: Mass,
+        protoplanet_sma: Length,
+        stellar_mass: Mass,
+    ) -> (f64, f64) {
+        // Gravitational constant in AU³ M☉⁻¹ year⁻²
+        const G: f64 = 39.478417;
+
+        let m_p = protoplanet_mass.to_solar_masses();
+        let m_star = stellar_mass.to_solar_masses();
+        let a_au = protoplanet_sma.to_au();
+
+        // Orbital frequency: Ω = √(GM/a³)
+        let omega = (G * m_star / a_au.powi(3)).sqrt(); // radians/year
+
+        // Mass of particle swarm in this bin
+        let m_swarm = self.total_mass().to_solar_masses();
+
+        // Avoid division by zero
+        if m_p < 1e-20 || m_swarm < 1e-20 {
+            return (0.0, 0.0);
+        }
+
+        // Damping rate: 1/τ ≈ (M_swarm / M_p) × Ω
+        let damping_rate = (m_swarm / m_p) * omega;
+
+        // Both eccentricity and inclination damp at similar rates
+        // de/dt = -e / τ, so the rate coefficient is 1/τ
+        (damping_rate, damping_rate)
+    }
 }

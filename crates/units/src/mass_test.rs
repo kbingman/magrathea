@@ -43,4 +43,25 @@ mod tests {
         let commutative = 2.5 * mass;
         assert_relative_eq!(commutative.to_earth_masses(), 250.0);
     }
+
+    #[test]
+    fn test_mass_zero() {
+        let zero = Mass::zero();
+
+        // Zero should be zero in all unit systems
+        assert_eq!(zero.to_solar_masses(), 0.0);
+        assert_eq!(zero.to_earth_masses(), 0.0);
+        assert_eq!(zero.to_jupiter_masses(), 0.0);
+        assert_eq!(zero.to_grams(), 0.0);
+        assert_eq!(zero.to_kg(), 0.0);
+
+        // Adding zero should not change a mass
+        let mass = Mass::from_earth_masses(10.0);
+        let with_zero = mass + Mass::zero();
+        assert_relative_eq!(with_zero.to_earth_masses(), 10.0);
+
+        // Subtracting zero should not change a mass
+        let minus_zero = mass - Mass::zero();
+        assert_relative_eq!(minus_zero.to_earth_masses(), 10.0);
+    }
 }
