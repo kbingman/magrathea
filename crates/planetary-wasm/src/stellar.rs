@@ -6,10 +6,10 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use wasm_bindgen::prelude::*;
 
-use stellar::MainSequenceStar;
-use stellar_forge::{
+use protodisk::{
     sample_main_sequence_star as forge_sample_main_sequence, solar_analog as forge_solar_analog,
 };
+use stellar::MainSequenceStar;
 
 /// Generate a solar analog star.
 ///
@@ -53,5 +53,5 @@ pub fn main_sequence_star_with_mass(
         8000.0 // Older for low-mass stars (they live longer)
     };
 
-    stellar_forge::main_sequence_star(mass_solar, 0.0, age_myr)
+    protodisk::main_sequence_star(mass_solar, 0.0, age_myr)
 }

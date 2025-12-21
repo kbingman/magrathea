@@ -1,5 +1,5 @@
 [package]
-name = "planetary-generator"
+name = "system-generator"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,7 @@ edition = "2024"
 star-system = { path = "../star-system" }
 planetary = { path = "../planetary" }
 stellar = { path = "../stellar" }
-stellar_forge = { path = "../stellar-forge" }
+protodisk = { path = "../protodisk" }
 units = { path = "../units" }
 
 rand = "0.9"

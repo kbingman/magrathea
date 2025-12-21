@@ -169,7 +169,7 @@ fn calculate_period(semi_major_axis_au: f64, total_mass_solar: f64) -> f64 {
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
 /// use stellar::stellar_object;
-/// use planetary_generator::binary::generation::generate_companion;
+/// use system_generator::binary::generation::generate_companion;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let primary = stellar_object(&mut rng, 1.0, 5e9, 0.0);
@@ -249,7 +249,7 @@ pub fn generate_companion(
 /// ```
 /// use rand_chacha::ChaChaRng;
 /// use rand::SeedableRng;
-/// use planetary_generator::binary::generation::generate_binary_system;
+/// use system_generator::binary::generation::generate_binary_system;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let (primary, secondary, config) = generate_binary_system(

@@ -1,9 +1,9 @@
 //! Test that the same seed produces identical systems
 //!
-//! Usage: cargo run -p planetary-generator --example test_seed_stability
+//! Usage: cargo run -p system-generator --example test_seed_stability
 
-use planetary_generator::from_star_with_id;
 use stellar::main_sequence_star;
+use system_generator::from_star_with_id;
 use uuid::Uuid;
 
 fn main() {

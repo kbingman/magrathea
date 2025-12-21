@@ -261,7 +261,7 @@ pub struct PlanetarySystem {
 
 ```rust
 use stellar_forge::solar_analog;
-use planetary_generator::{generate_planetary_system, from_star};
+use system_generator::{generate_planetary_system, from_star};
 use uuid::Uuid;
 
 // From a StellarObject with specific UUID
@@ -290,8 +290,8 @@ let system = from_star(&star);
 ### Reproducible Generation
 
 ```rust
-use planetary_generator::generate_planetary_system_named;
-use stellar_forge::solar_analog;
+use system_generator::generate_planetary_system_named;
+use protodisk::solar_analog;
 use stellar::StellarObject;
 
 // Same name always produces same system
@@ -308,8 +308,8 @@ assert_eq!(system1.metadata.id, system2.metadata.id);
 ```rust
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
-use stellar_forge::sample_main_sequence_star;
-use planetary_generator::from_star;
+use protodisk::sample_main_sequence_star;
+use system_generator::from_star;
 
 let mut rng = ChaChaRng::seed_from_u64(42);
 
@@ -383,9 +383,9 @@ println!("Compact multi-planet systems: {}/1000", compact);
 The `planetary-generator` crate integrates directly with the stellar generation code via `StellarObject`:
 
 ```rust
-use stellar_forge::{sample_main_sequence_star, solar_analog};
+use protodisk::{sample_main_sequence_star, solar_analog};
 use stellar::StellarObject;
-use planetary_generator::{generate_planetary_system, from_star, from_star_with_id};
+use system_generator::{generate_planetary_system, from_star, from_star_with_id};
 use uuid::Uuid;
 
 // Method 1: From MainSequenceStar (convenience)
@@ -414,7 +414,7 @@ The `star-system` crate defines the unified output format, allowing multiple gen
 use star_system::{PlanetarySystem, GenerationMethod};
 
 // Statistical generator (fast, occurrence-rate based)
-let system = planetary_generator::from_star(&star);
+let system = system_generator::from_star(&star);
 assert_eq!(system.metadata.generation_method, GenerationMethod::Statistical);
 
 // Future: Physics-based formation simulation

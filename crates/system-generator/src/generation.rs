@@ -198,7 +198,7 @@ impl StellarContext {
 /// # Example
 /// ```ignore
 /// use stellar::StellarObject;
-/// use planetary_generator::generate_planetary_system;
+/// use system_generator::generate_planetary_system;
 /// use uuid::Uuid;
 ///
 /// let star = StellarObject::MainSequence(my_star);
@@ -255,7 +255,7 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
 /// # Example
 /// ```ignore
 /// use stellar::StellarObject;
-/// use planetary_generator::generate_planetary_system_random;
+/// use system_generator::generate_planetary_system_random;
 ///
 /// let star = StellarObject::MainSequence(my_star);
 /// let system = generate_planetary_system_random(star);
@@ -272,7 +272,7 @@ pub fn generate_planetary_system_random(star: StellarObject) -> PlanetarySystem 
 /// # Example
 /// ```ignore
 /// use stellar::StellarObject;
-/// use planetary_generator::generate_planetary_system_named;
+/// use system_generator::generate_planetary_system_named;
 ///
 /// let star = StellarObject::MainSequence(my_star);
 /// let system = generate_planetary_system_named(star, "test-system-42");
@@ -293,7 +293,7 @@ pub fn generate_planetary_system_named(star: StellarObject, name: &str) -> Plane
 /// use rand::SeedableRng;
 /// use rand_chacha::ChaChaRng;
 /// use stellar::sample_main_sequence_star;
-/// use planetary_generator::from_star;
+/// use system_generator::from_star;
 ///
 /// let mut rng = ChaChaRng::seed_from_u64(42);
 /// let star = sample_main_sequence_star(&mut rng);
@@ -308,7 +308,7 @@ pub fn from_star(star: &MainSequenceStar) -> PlanetarySystem {
 /// # Example
 /// ```ignore
 /// use stellar::sample_main_sequence_star;
-/// use planetary_generator::from_star_with_id;
+/// use system_generator::from_star_with_id;
 /// use uuid::Uuid;
 ///
 /// let star = sample_main_sequence_star(&mut rng);
@@ -341,7 +341,7 @@ pub fn from_star_with_id(star: &MainSequenceStar, id: Uuid) -> PlanetarySystem {
 ///
 /// # Example
 /// ```
-/// use planetary_generator::generate_random_system;
+/// use system_generator::generate_random_system;
 ///
 /// let system1 = generate_random_system(42);
 /// let system2 = generate_random_system(42);

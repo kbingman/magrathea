@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use wasm_bindgen::prelude::*;
 
-use stellar_forge::{DiskMass, DiskModel, GasDisk, GridDisk, MainSequenceStar};
+use protodisk::{DiskMass, DiskModel, GasDisk, GridDisk, MainSequenceStar};
 
 use crate::{from_js, to_js};
 

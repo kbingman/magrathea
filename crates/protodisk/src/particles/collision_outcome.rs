@@ -157,7 +157,7 @@ impl CollisionOutcome {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::particles::{CollisionOutcome, MaterialProperties};
+    /// use protodisk::particles::{CollisionOutcome, MaterialProperties};
     /// use units::Velocity;
     /// use rand::SeedableRng;
     /// use rand_chacha::ChaChaRng;

@@ -9,10 +9,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 planetary = { path = "../planetary", features = ["tsify"] }
-planetary-generator = { path = "../planetary-generator" }
+system-generator = { path = "../system-generator" }
 star-system = { path = "../star-system", features = ["tsify"] }
 stellar = { path = "../stellar", features = ["tsify"] }
-stellar_forge = { path = "../stellar-forge" }
+protodisk = { path = "../protodisk" }
 units = { path = "../units" }
 
 wasm-bindgen = "0.2"

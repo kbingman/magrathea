@@ -472,7 +472,7 @@ pub fn simulate_formation(
 1. **Where should the unified type live?**
    - **Decision**: New `star-system` crate (Option B) - provides clean separation
    - The `star-system` crate depends on both `planetary` and `stellar`
-   - The `planetary-generator` crate depends on `star-system` for output types
+   - The `system-generator` crate depends on `star-system` for output types
 
 2. **Should `stars` be `NonEmpty<StellarObject>`?**
    - **Decision**: Use `Vec` with runtime assertion in constructor

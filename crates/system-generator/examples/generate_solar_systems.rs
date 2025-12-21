@@ -1,18 +1,15 @@
-//! Generate planetary systems and export to CSV for analysis
+//! Generate planetary systems around solar analog stars and export to CSV
 //!
-//! Usage: cargo run -p planetary-generator --example generate_systems
+//! Usage: cargo run -p system-generator --example generate_solar_systems
 //!
-//! Output: systems.csv in current directory
+//! Output: solar_systems.csv in current directory
 
-use rand::SeedableRng;
-use rand_chacha::ChaChaRng;
-use stellar::sample_main_sequence_star;
+use stellar::solar_analog;
 
 use planetary::planet_class::PlanetClass;
-use planetary_generator::from_star;
+use system_generator::from_star;
 
 fn main() {
-    let mut rng = ChaChaRng::seed_from_u64(42);
     let n_systems = 1000;
 
     // CSV header
@@ -23,7 +20,7 @@ fn main() {
     );
 
     for i in 0..n_systems {
-        let star = sample_main_sequence_star(&mut rng);
+        let star = solar_analog();
         let system = from_star(&star);
 
         let n_rocky = system
@@ -81,5 +78,5 @@ fn main() {
         );
     }
 
-    eprintln!("Generated {} systems", n_systems);
+    eprintln!("Generated {} solar analog systems", n_systems);
 }

@@ -4,7 +4,7 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use wasm_bindgen::prelude::*;
 
-use stellar_forge::{
+use protodisk::{
     giant_star as forge_giant_star, main_sequence_star as forge_main_sequence_star,
     neutron_star as forge_neutron_star, sample_main_sequence_star as forge_sample_main_sequence,
     sample_stellar_object as forge_sample_stellar_object, solar_analog as forge_solar_analog,

@@ -9,12 +9,12 @@ use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
 use planetary::Planet;
-use planetary_generator::{
-    from_star, from_star_with_id, generate_planetary_system, generate_planetary_system_named,
-};
+use protodisk::{MainSequenceStar, sample_main_sequence_star, solar_analog};
 use star_system::PlanetarySystem;
 use stellar::StellarObject;
-use stellar_forge::{MainSequenceStar, sample_main_sequence_star, solar_analog};
+use system_generator::{
+    from_star, from_star_with_id, generate_planetary_system, generate_planetary_system_named,
+};
 
 // =============================================================================
 // System Generation - Convenience Functions

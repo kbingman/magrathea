@@ -401,7 +401,7 @@ impl SizeDistribution {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::SizeDistribution;
+    /// use protodisk::SizeDistribution;
     /// use units::{Density, Length, Mass};
     ///
     /// let dist = SizeDistribution::mrn(

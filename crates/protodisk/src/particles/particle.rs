@@ -51,7 +51,7 @@ impl Particle {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::particles::Particle;
+    /// use protodisk::particles::Particle;
     /// use units::{Length, Density};
     ///
     /// // 1 mm silicate grain

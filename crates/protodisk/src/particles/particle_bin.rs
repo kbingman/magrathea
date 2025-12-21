@@ -477,8 +477,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::GasDisk;
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::GasDisk;
+    /// use protodisk::particles::ParticleBin;
     /// use units::Length;
     ///
     /// let disk = GasDisk::mmsn();
@@ -546,8 +546,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::GasDisk;
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::GasDisk;
+    /// use protodisk::particles::ParticleBin;
     /// use units::Length;
     ///
     /// let disk = GasDisk::mmsn();
@@ -618,8 +618,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::GasDisk;
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::GasDisk;
+    /// use protodisk::particles::ParticleBin;
     /// use units::Length;
     ///
     /// let disk = GasDisk::mmsn();
@@ -682,8 +682,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::{DiskModel, GasDisk};
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::{DiskModel, GasDisk};
+    /// use protodisk::particles::ParticleBin;
     /// use units::{Length, SurfaceDensity, Density};
     ///
     /// let disk = GasDisk::mmsn();
@@ -735,8 +735,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::{DiskModel, GasDisk};
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::{DiskModel, GasDisk};
+    /// use protodisk::particles::ParticleBin;
     /// use units::{Length, SurfaceDensity};
     ///
     /// let disk = GasDisk::mmsn();
@@ -777,8 +777,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::{DiskModel, GasDisk};
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::{DiskModel, GasDisk};
+    /// use protodisk::particles::ParticleBin;
     /// use units::{Length, SurfaceDensity};
     ///
     /// let disk = GasDisk::mmsn();
@@ -827,8 +827,8 @@ impl ParticleBin {
     ///
     /// # Example
     /// ```
-    /// use stellar_forge::disk::{DiskModel, GasDisk};
-    /// use stellar_forge::particles::ParticleBin;
+    /// use protodisk::disk::{DiskModel, GasDisk};
+    /// use protodisk::particles::ParticleBin;
     /// use units::{Length, SurfaceDensity};
     /// use rand::SeedableRng;
     /// use rand_chacha::ChaChaRng;
