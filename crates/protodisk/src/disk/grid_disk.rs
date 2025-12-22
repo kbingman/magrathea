@@ -7,10 +7,11 @@
 //!
 //! The grid uses logarithmic spacing for uniform resolution in log(r).
 
-use units::{Length, Mass, SurfaceDensity, Temperature};
+use units::{Length, Mass, MassRate, SurfaceDensity, Temperature};
 
 use super::disk_model::{DiskMass, DiskModel};
 use super::gas_disk::GasDisk;
+use super::photoevaporation::PhotoevaporationModel;
 use crate::disk::constants::{G, K_B, M_PROTON, MU, PI};
 
 /// A protoplanetary disk with surface density stored on a radial grid.
@@ -39,6 +40,9 @@ pub struct GridDisk {
 
     /// Shakura-Sunyaev viscosity parameter
     alpha: f64,
+
+    /// Photoevaporation model
+    photoevaporation: PhotoevaporationModel,
 }
 
 impl GridDisk {
@@ -76,6 +80,7 @@ impl GridDisk {
             r_0,
             stellar_mass,
             alpha,
+            photoevaporation: PhotoevaporationModel::None,
         }
     }
 
@@ -121,6 +126,7 @@ impl GridDisk {
             r_0: r_0_cm,
             stellar_mass: stellar_mass.to_grams(),
             alpha,
+            photoevaporation: PhotoevaporationModel::None,
         }
     }
 
@@ -147,6 +153,7 @@ impl GridDisk {
             r_0: disk.r_0.to_cm(),
             stellar_mass: disk.stellar_mass.to_grams(),
             alpha: disk.alpha,
+            photoevaporation: PhotoevaporationModel::None,
         }
     }
 
@@ -198,6 +205,81 @@ impl GridDisk {
         let log_sigma_ip1 = self.sigma[i + 1].ln();
 
         (log_sigma_i + t * (log_sigma_ip1 - log_sigma_i)).exp()
+    }
+
+    // =========================================================================
+    // Photoevaporation
+    // =========================================================================
+
+    /// Set the photoevaporation model.
+    pub fn set_photoevaporation(&mut self, model: PhotoevaporationModel) {
+        self.photoevaporation = model;
+    }
+
+    /// Get the current photoevaporation model.
+    pub fn photoevaporation(&self) -> &PhotoevaporationModel {
+        &self.photoevaporation
+    }
+
+    /// Apply photoevaporation for one timestep.
+    ///
+    /// Reduces surface density at each grid point according to the
+    /// photoevaporation mass loss rate.
+    ///
+    /// # Arguments
+    /// * `dt` - Timestep in seconds
+    pub fn apply_photoevaporation(&mut self, dt: f64) {
+        let n = self.radii.len();
+
+        for i in 0..n {
+            let r = self.radii[i];
+            let sigma = self.sigma[i];
+
+            // Mass loss rate per unit area (g/cm²/s)
+            let sigma_dot = self
+                .photoevaporation
+                .mass_loss_rate_per_area(r, self.stellar_mass, sigma);
+
+            // Update surface density
+            let new_sigma = (sigma - sigma_dot * dt).max(0.0);
+            self.sigma[i] = new_sigma;
+        }
+    }
+
+    /// Total photoevaporative mass loss rate from entire disk.
+    ///
+    /// # Returns
+    /// Mass loss rate in solar masses per year
+    pub fn total_photoevaporation_rate(&self) -> MassRate {
+        let mut mdot = 0.0;
+
+        for i in 0..self.radii.len() - 1 {
+            let r1 = self.radii[i];
+            let r2 = self.radii[i + 1];
+            let s1 = self.sigma[i];
+            let s2 = self.sigma[i + 1];
+
+            let r_mid = (r1 * r2).sqrt();
+            let s_mid = (s1 * s2).sqrt();
+            let dr = r2 - r1;
+
+            let sigma_dot = self
+                .photoevaporation
+                .mass_loss_rate_per_area(r_mid, self.stellar_mass, s_mid);
+
+            // dM/dt = Σ̇ × 2πr dr
+            mdot += sigma_dot * 2.0 * PI * r_mid * dr;
+        }
+
+        MassRate::from_grams_per_year(mdot * 3.156e7) // Convert /s to /year
+    }
+
+    /// Check if disk is dispersed (very low mass remaining).
+    ///
+    /// Disk is considered dispersed when M_disk < 0.01 M_Jupiter.
+    pub fn is_dispersed(&self) -> bool {
+        let m_disk = self.total_mass().to_jupiter_masses();
+        m_disk < 0.01
     }
 
     // =========================================================================
