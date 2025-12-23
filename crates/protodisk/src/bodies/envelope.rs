@@ -327,12 +327,8 @@ mod tests {
         let core_radius = Length::from_earth_radii(2.0);
         let core_luminosity = 1e27; // erg/s
 
-        let tau_kh = kelvin_helmholtz_timescale(
-            core_mass,
-            envelope_mass,
-            core_radius,
-            core_luminosity,
-        );
+        let tau_kh =
+            kelvin_helmholtz_timescale(core_mass, envelope_mass, core_radius, core_luminosity);
 
         assert!(tau_kh.to_years() > 0.0);
     }
@@ -345,12 +341,8 @@ mod tests {
         let core_radius = Length::from_earth_radii(2.0);
         let core_luminosity = 1e27; // erg/s
 
-        let tau_kh = kelvin_helmholtz_timescale(
-            core_mass,
-            envelope_mass,
-            core_radius,
-            core_luminosity,
-        );
+        let tau_kh =
+            kelvin_helmholtz_timescale(core_mass, envelope_mass, core_radius, core_luminosity);
 
         // KH timescale should be ~Myr
         let tau_myr = tau_kh.to_years() / 1e6;
@@ -366,18 +358,10 @@ mod tests {
         let env_small = Mass::from_earth_masses(0.1);
         let env_large = Mass::from_earth_masses(1.0);
 
-        let rate_small = kelvin_helmholtz_growth_rate(
-            core_mass,
-            env_small,
-            core_radius,
-            core_accretion_rate,
-        );
-        let rate_large = kelvin_helmholtz_growth_rate(
-            core_mass,
-            env_large,
-            core_radius,
-            core_accretion_rate,
-        );
+        let rate_small =
+            kelvin_helmholtz_growth_rate(core_mass, env_small, core_radius, core_accretion_rate);
+        let rate_large =
+            kelvin_helmholtz_growth_rate(core_mass, env_large, core_radius, core_accretion_rate);
 
         // KH growth rate = M_env / τ_KH = (R_core L_core) / (G M_core)
         // It's actually independent of M_env! (τ_KH ∝ M_env)

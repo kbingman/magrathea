@@ -68,7 +68,9 @@ fn photoevaporation_reduces_disk_mass() {
         if step % 2 == 0 {
             let mass = grid.total_mass().to_solar_masses();
             let time_myr = (step as f64 + 1.0) * 1e4 / 1e6;
-            let mdot = grid.total_photoevaporation_rate().to_solar_masses_per_year();
+            let mdot = grid
+                .total_photoevaporation_rate()
+                .to_solar_masses_per_year();
 
             println!(
                 "t = {:.3} Myr: M = {:.6} M_sun, dM/dt = {:.2e} M_sun/yr",
@@ -191,10 +193,7 @@ fn euv_mass_loss_beyond_gravitational_radius() {
     println!("EUV mass loss at 30 AU: {:.2e} g/cm²/s", mdot_outer);
 
     // Inner disk (inside r_g) should have zero EUV mass loss
-    assert_eq!(
-        mdot_inner, 0.0,
-        "EUV mass loss should be zero inside r_g"
-    );
+    assert_eq!(mdot_inner, 0.0, "EUV mass loss should be zero inside r_g");
 
     // Outer disk should have positive mass loss
     assert!(

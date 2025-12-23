@@ -236,9 +236,9 @@ impl GridDisk {
             let sigma = self.sigma[i];
 
             // Mass loss rate per unit area (g/cm²/s)
-            let sigma_dot = self
-                .photoevaporation
-                .mass_loss_rate_per_area(r, self.stellar_mass, sigma);
+            let sigma_dot =
+                self.photoevaporation
+                    .mass_loss_rate_per_area(r, self.stellar_mass, sigma);
 
             // Update surface density
             let new_sigma = (sigma - sigma_dot * dt).max(0.0);
@@ -263,9 +263,9 @@ impl GridDisk {
             let s_mid = (s1 * s2).sqrt();
             let dr = r2 - r1;
 
-            let sigma_dot = self
-                .photoevaporation
-                .mass_loss_rate_per_area(r_mid, self.stellar_mass, s_mid);
+            let sigma_dot =
+                self.photoevaporation
+                    .mass_loss_rate_per_area(r_mid, self.stellar_mass, s_mid);
 
             // dM/dt = Σ̇ × 2πr dr
             mdot += sigma_dot * 2.0 * PI * r_mid * dr;
