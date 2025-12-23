@@ -26,8 +26,11 @@ use super::disk_model::{DiskMass, DiskModel};
 
 /// A protoplanetary gas disk with power-law profiles.
 ///
-/// Surface density: Σ(r) = Σ_0 × (r / r_0)^(-p)
+/// Surface density: Σ(r) = Σ_0 × (r / r_0)^(-p) × exp(-(r/r_c)²)
 /// Temperature: T(r) = T_0 × (r / r_0)^(-q)
+///
+/// The exponential taper prevents unrealistic planet formation in the outer disk
+/// and creates a pressure maximum that can trap migrating planets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GasDisk {
@@ -56,6 +59,14 @@ pub struct GasDisk {
     /// Shakura-Sunyaev viscosity parameter
     /// Typical value: 1e-3 to 1e-2
     pub alpha: f64,
+
+    /// Optional exponential taper for surface density.
+    /// If Some(r_c), applies exp(-(r/r_c)²) to surface density profile.
+    /// Typical value: r_c = 0.4 × outer_radius
+    /// Creates pressure maximum that acts as planet trap.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub taper_radius: Option<Length>,
 }
 
 impl GasDisk {
@@ -87,9 +98,11 @@ impl GasDisk {
         let inner = 0.1 * mass_solar.powf(0.5);
         let outer = 100.0 * mass_solar.powf(0.5);
 
+        let outer_radius = Length::from_au(outer);
+
         Self {
             inner_radius: Length::from_au(inner),
-            outer_radius: Length::from_au(outer),
+            outer_radius,
             r_0: Length::from_au(1.0),
             sigma_0: SurfaceDensity::from_grams_per_cm2(sigma_at_1au),
             sigma_exponent: 1.0,
@@ -97,6 +110,7 @@ impl GasDisk {
             temp_exponent: 0.5,
             stellar_mass: star.mass,
             alpha: 1e-3,
+            taper_radius: None, // No taper by default
         }
     }
 
@@ -131,7 +145,42 @@ impl GasDisk {
             temp_exponent,
             stellar_mass,
             alpha,
+            taper_radius: None, // No taper by default
         }
+    }
+
+    /// Enable exponential taper for this disk.
+    ///
+    /// The taper creates a pressure maximum that can trap migrating planets
+    /// and prevents unrealistic planet formation in the outer disk.
+    ///
+    /// # Arguments
+    /// * `r_c` - Characteristic radius for exponential taper.
+    ///   Typical value: 0.4 × outer_radius
+    ///
+    /// # Physics
+    ///
+    /// The tapered profile is: Σ(r) = Σ_0 × (r/r_0)^(-p) × exp(-(r/r_c)²)
+    ///
+    /// This creates a pressure maximum at r ≈ r_c × √(p/2), which acts as a
+    /// "planet trap" where Type I migration torques change sign.
+    ///
+    /// # References
+    /// - Lynden-Bell & Pringle (1974) - Exponentially tapered disk models
+    /// - Hasegawa & Pudritz (2013) - Planet trapping at ice lines
+    pub fn with_taper(mut self, r_c: Length) -> Self {
+        self.taper_radius = Some(r_c);
+        self
+    }
+
+    /// Enable exponential taper at typical location (0.4 × outer_radius).
+    ///
+    /// This is a convenience method that sets the taper radius to the
+    /// standard value observed in disk profiles.
+    pub fn with_standard_taper(mut self) -> Self {
+        let r_c = Length::from_au(0.4 * self.outer_radius.to_au());
+        self.taper_radius = Some(r_c);
+        self
     }
 }
 
@@ -142,9 +191,18 @@ impl GasDisk {
 impl DiskModel for GasDisk {
     fn surface_density(&self, r: Length) -> SurfaceDensity {
         let ratio = r.to_cm() / self.r_0.to_cm();
-        SurfaceDensity::from_grams_per_cm2(
-            self.sigma_0.to_grams_per_cm2() * ratio.powf(-self.sigma_exponent),
-        )
+        let power_law = self.sigma_0.to_grams_per_cm2() * ratio.powf(-self.sigma_exponent);
+
+        // Apply exponential taper if present
+        let tapered = if let Some(r_c) = self.taper_radius {
+            let r_ratio = r.to_au() / r_c.to_au();
+            let taper_factor = (-r_ratio * r_ratio).exp();
+            power_law * taper_factor
+        } else {
+            power_law
+        };
+
+        SurfaceDensity::from_grams_per_cm2(tapered)
     }
 
     fn temperature(&self, r: Length) -> Temperature {

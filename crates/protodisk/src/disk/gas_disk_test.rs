@@ -208,3 +208,124 @@ fn analytical_pressure_gradient_matches_expected() {
     let d_ln_p_5au = disk.pressure_gradient_log(Length::from_au(5.0));
     assert_relative_eq!(d_ln_p, d_ln_p_5au, max_relative = 1e-10);
 }
+
+#[test]
+fn tapered_disk_reduces_outer_density() {
+    let disk_plain = GasDisk::mmsn();
+    let disk_tapered = GasDisk::mmsn().with_standard_taper();
+
+    // At 1 AU: taper should have minimal effect
+    let sigma_1au_plain = disk_plain.surface_density(Length::from_au(1.0));
+    let sigma_1au_tapered = disk_tapered.surface_density(Length::from_au(1.0));
+    let ratio_1au = sigma_1au_tapered.to_grams_per_cm2() / sigma_1au_plain.to_grams_per_cm2();
+    assert!(ratio_1au > 0.99, "At 1 AU, taper effect should be minimal");
+
+    // At 40 AU (= r_c): taper reduces density to ~37%
+    let sigma_40au_plain = disk_plain.surface_density(Length::from_au(40.0));
+    let sigma_40au_tapered = disk_tapered.surface_density(Length::from_au(40.0));
+    let ratio_40au = sigma_40au_tapered.to_grams_per_cm2() / sigma_40au_plain.to_grams_per_cm2();
+    assert!(
+        (ratio_40au - 0.368).abs() < 0.01,
+        "At r_c, exp(-1) ≈ 0.368, got {}",
+        ratio_40au
+    );
+
+    // At 100 AU (outer edge): taper reduces density dramatically
+    let sigma_100au_plain = disk_plain.surface_density(Length::from_au(100.0));
+    let sigma_100au_tapered = disk_tapered.surface_density(Length::from_au(100.0));
+    let ratio_100au = sigma_100au_tapered.to_grams_per_cm2() / sigma_100au_plain.to_grams_per_cm2();
+    assert!(
+        ratio_100au < 0.01,
+        "At outer edge, taper should reduce density to < 1%, got {}",
+        ratio_100au
+    );
+
+    println!("Taper effect at 1 AU: {:.3}", ratio_1au);
+    println!("Taper effect at 40 AU (r_c): {:.3}", ratio_40au);
+    println!("Taper effect at 100 AU: {:.3}", ratio_100au);
+}
+
+#[test]
+fn tapered_disk_with_custom_radius() {
+    let disk_plain = GasDisk::mmsn();
+    let custom_r_c = Length::from_au(20.0);
+    let disk_tapered = GasDisk::mmsn().with_taper(custom_r_c);
+
+    // At r_c = 20 AU: should have exp(-1) ≈ 0.368 of plain disk
+    let sigma_plain = disk_plain.surface_density(custom_r_c);
+    let sigma_tapered = disk_tapered.surface_density(custom_r_c);
+    let ratio = sigma_tapered.to_grams_per_cm2() / sigma_plain.to_grams_per_cm2();
+
+    assert!(
+        (ratio - 0.368).abs() < 0.01,
+        "At custom r_c = 20 AU, expected exp(-1) ≈ 0.368, got {}",
+        ratio
+    );
+}
+
+#[test]
+fn tapered_disk_creates_different_pressure_profile() {
+    let disk_plain = GasDisk::mmsn();
+    let disk_tapered = GasDisk::mmsn().with_standard_taper();
+
+    // In a plain power-law disk, pressure decreases monotonically
+    // In a tapered disk, the exponential cutoff changes the pressure gradient
+
+    // Sample at several radii
+    let radii = [5.0, 10.0, 20.0, 30.0, 40.0, 60.0, 80.0];
+
+    // Calculate pressure gradients (ratio of successive pressures)
+    let mut plain_gradients = Vec::new();
+    let mut tapered_gradients = Vec::new();
+
+    for i in 0..radii.len() - 1 {
+        let r1 = Length::from_au(radii[i]);
+        let r2 = Length::from_au(radii[i + 1]);
+
+        let p1_plain = disk_plain.surface_density(r1).to_grams_per_cm2()
+            * disk_plain.temperature(r1).to_kelvin();
+        let p2_plain = disk_plain.surface_density(r2).to_grams_per_cm2()
+            * disk_plain.temperature(r2).to_kelvin();
+        plain_gradients.push(p2_plain / p1_plain);
+
+        let p1_tapered = disk_tapered.surface_density(r1).to_grams_per_cm2()
+            * disk_tapered.temperature(r1).to_kelvin();
+        let p2_tapered = disk_tapered.surface_density(r2).to_grams_per_cm2()
+            * disk_tapered.temperature(r2).to_kelvin();
+        tapered_gradients.push(p2_tapered / p1_tapered);
+    }
+
+    // In the outer disk (beyond r_c), tapered disk should have steeper pressure drop
+    let outer_idx = tapered_gradients.len() - 1; // 60-80 AU range
+    assert!(
+        tapered_gradients[outer_idx] < plain_gradients[outer_idx],
+        "Tapered disk should have steeper pressure gradient in outer regions"
+    );
+
+    println!(
+        "Plain disk gradient (60-80 AU): {:.3}",
+        plain_gradients[outer_idx]
+    );
+    println!(
+        "Tapered disk gradient (60-80 AU): {:.3}",
+        tapered_gradients[outer_idx]
+    );
+}
+
+#[test]
+fn no_taper_by_default() {
+    let disk = GasDisk::mmsn();
+    assert!(
+        disk.taper_radius.is_none(),
+        "Default disk should have no taper"
+    );
+}
+
+#[test]
+fn standard_taper_is_40_percent_of_outer_radius() {
+    let disk = GasDisk::mmsn().with_standard_taper();
+    let r_c = disk.taper_radius.expect("Should have taper radius");
+    let expected = 0.4 * disk.outer_radius.to_au();
+
+    assert_relative_eq!(r_c.to_au(), expected, max_relative = 1e-10);
+}

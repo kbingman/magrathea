@@ -18,6 +18,7 @@
 
 mod discrete_body;
 mod envelope;
+mod migration;
 mod orbital_elements;
 
 #[cfg(test)]
@@ -34,6 +35,7 @@ pub use envelope::{
     bondi_radius, can_capture_envelope, critical_core_mass, gas_sound_speed,
     kelvin_helmholtz_growth_rate, kelvin_helmholtz_timescale, supply_limited_accretion_rate,
 };
+pub use migration::{migration_distance, migration_velocity, type_i_migration_timescale};
 pub use orbital_elements::{
     OrbitalElements, cartesian_to_orbital_elements, orbital_elements_to_cartesian,
 };
