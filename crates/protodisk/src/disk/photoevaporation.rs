@@ -34,9 +34,10 @@ use units::{Length, Mass, MassRate};
 use crate::disk::constants::{G, K_B, M_PROTON, MU, PI};
 
 /// Photoevaporation model.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum PhotoevaporationModel {
     /// No photoevaporation
+    #[default]
     None,
 
     /// EUV photoevaporation only.
@@ -107,12 +108,7 @@ impl PhotoevaporationModel {
     ///
     /// # Returns
     /// Mass loss rate per unit area (g/cm²/s)
-    pub fn mass_loss_rate_per_area(
-        &self,
-        r: f64,
-        stellar_mass: f64,
-        surface_density: f64,
-    ) -> f64 {
+    pub fn mass_loss_rate_per_area(&self, r: f64, stellar_mass: f64, surface_density: f64) -> f64 {
         match self {
             Self::None => 0.0,
             Self::Euv { phi_euv } => self.euv_mass_loss_rate(r, stellar_mass, *phi_euv),
@@ -216,12 +212,6 @@ impl PhotoevaporationModel {
     }
 }
 
-impl Default for PhotoevaporationModel {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 /// Photoevaporation-enhanced disk model.
 ///
 /// Wraps a disk model and adds photoevaporation mass loss.
@@ -266,7 +256,12 @@ impl<D> PhotoevaporatingDisk<D> {
     /// Total photoevaporative mass loss rate from entire disk.
     ///
     /// Integrated over all radii: Ṁ = ∫ Σ̇ 2πr dr
-    pub fn total_mass_loss_rate(&self, stellar_mass: Mass, radii: &[Length], sigma: &[f64]) -> MassRate {
+    pub fn total_mass_loss_rate(
+        &self,
+        stellar_mass: Mass,
+        radii: &[Length],
+        sigma: &[f64],
+    ) -> MassRate {
         let mut mdot = 0.0;
 
         for i in 0..radii.len() - 1 {

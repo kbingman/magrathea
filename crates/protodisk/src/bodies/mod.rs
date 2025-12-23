@@ -23,6 +23,8 @@ mod orbital_elements;
 #[cfg(test)]
 mod discrete_body_test;
 #[cfg(test)]
+mod envelope_evolution_test;
+#[cfg(test)]
 mod growth_integration_test;
 #[cfg(test)]
 mod orbital_elements_test;

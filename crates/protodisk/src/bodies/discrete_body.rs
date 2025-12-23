@@ -8,9 +8,11 @@
 use nalgebra::{Point2, Vector2};
 use planetary::composition::Composition;
 use serde::{Deserialize, Serialize};
-use units::{Length, Mass, MassRate, Velocity};
+use units::{Length, Mass, MassRate, Time, Velocity};
 
+use super::envelope;
 use super::orbital_elements::cartesian_to_orbital_elements;
+use crate::disk::DiskModel;
 
 /// Gravitational constant in AU³ M☉⁻¹ year⁻²
 const G: f64 = 39.478417;
@@ -394,6 +396,178 @@ impl DiscreteBody {
         let m_iso = 2.0 * std::f64::consts::PI * a * delta_a * sigma;
 
         Mass::from_solar_masses(m_iso)
+    }
+
+    // ===== Gas Envelope Evolution =====
+
+    /// Evolve gas envelope for one timestep.
+    ///
+    /// Handles envelope state transitions:
+    /// - None → Hydrostatic (when core mass sufficient and gas available)
+    /// - Hydrostatic → Runaway (when core exceeds critical mass)
+    /// - Runaway → Final (when gas disk disperses or gap opens)
+    ///
+    /// # Arguments
+    /// * `disk` - Gas disk model
+    /// * `core_accretion_rate` - Rate of planetesimal accretion (for luminosity)
+    /// * `dt` - Timestep in years
+    /// * `opacity` - Grain opacity in cm²/g (typically 0.01-10)
+    ///
+    /// # Physics
+    ///
+    /// Before critical mass: envelope grows via Kelvin-Helmholtz contraction
+    /// After critical mass: runaway accretion limited by disk supply or gap
+    pub fn evolve_envelope<D: DiskModel>(
+        &mut self,
+        disk: &D,
+        core_accretion_rate: MassRate,
+        dt: Time,
+        opacity: f64,
+    ) {
+        let location = self.semi_major_axis;
+        let gas_sigma = disk.surface_density(location);
+
+        // For Runaway state, compute gap opening and local gas mass before mutable borrow
+        let (opens_gap, local_gas_mass) =
+            if matches!(self.envelope_state, EnvelopeState::Runaway { .. }) {
+                let stellar_mass = disk.stellar_mass();
+                (
+                    self.opens_gap(disk, stellar_mass),
+                    self.local_gas_mass(disk),
+                )
+            } else {
+                (false, Mass::zero())
+            };
+
+        match &mut self.envelope_state {
+            EnvelopeState::None => {
+                // Check if conditions allow envelope capture
+                if envelope::can_capture_envelope(self.core_mass, gas_sigma) {
+                    // Start with small envelope mass
+                    let initial_envelope = Mass::from_earth_masses(0.01);
+                    self.envelope_mass = initial_envelope;
+                    self.envelope_state = EnvelopeState::Hydrostatic {
+                        envelope_mass: initial_envelope,
+                    };
+                }
+            }
+
+            EnvelopeState::Hydrostatic { envelope_mass } => {
+                // Check if core exceeded critical mass
+                let m_crit = envelope::critical_core_mass(core_accretion_rate, opacity);
+
+                if self.core_mass > m_crit {
+                    // Transition to runaway accretion!
+                    let initial_rate = envelope::supply_limited_accretion_rate(disk, location);
+                    self.envelope_state = EnvelopeState::Runaway {
+                        envelope_mass: *envelope_mass,
+                        accretion_rate: initial_rate,
+                    };
+                } else {
+                    // Continue slow Kelvin-Helmholtz growth
+                    let growth_rate = envelope::kelvin_helmholtz_growth_rate(
+                        self.core_mass,
+                        *envelope_mass,
+                        self.physical_radius,
+                        core_accretion_rate,
+                    );
+
+                    let dm = growth_rate.to_solar_masses_per_year() * dt.to_years();
+                    *envelope_mass = *envelope_mass + Mass::from_solar_masses(dm);
+                    self.envelope_mass = *envelope_mass;
+                }
+            }
+
+            EnvelopeState::Runaway {
+                envelope_mass,
+                accretion_rate,
+            } => {
+                // Use precomputed values (computed before the match to avoid borrow conflicts)
+                if opens_gap {
+                    // Transition to final state (gap stops accretion)
+                    self.envelope_state = EnvelopeState::Final {
+                        envelope_mass: *envelope_mass,
+                    };
+                } else {
+                    // Continue runaway accretion
+                    // Rate limited by disk supply
+                    *accretion_rate = envelope::supply_limited_accretion_rate(disk, location);
+
+                    let dm = accretion_rate.to_solar_masses_per_year() * dt.to_years();
+                    *envelope_mass = *envelope_mass + Mass::from_solar_masses(dm);
+                    self.envelope_mass = *envelope_mass;
+
+                    // Also check if we've consumed most of the local gas
+                    if self.envelope_mass > local_gas_mass * 0.5 {
+                        // Consumed most local gas, stop
+                        self.envelope_state = EnvelopeState::Final {
+                            envelope_mass: *envelope_mass,
+                        };
+                    }
+                }
+            }
+
+            EnvelopeState::Final { .. } => {
+                // No further evolution (gas disk dispersed or gap opened)
+            }
+        }
+
+        // Update physical radius after envelope growth
+        self.physical_radius = Self::estimate_radius(self.total_mass(), &self.composition);
+    }
+
+    /// Check if this body opens a gap in the gas disk.
+    ///
+    /// Gap opening requires the tidal torques to exceed viscous refilling.
+    /// Two criteria must be met:
+    ///
+    /// **Thermal criterion**: q > (h/r)³ where q = M_p / M_*
+    /// **Viscous criterion**: q > 40α × (h/r)⁵
+    ///
+    /// # Arguments
+    /// * `disk` - Gas disk model
+    /// * `stellar_mass` - Mass of central star
+    ///
+    /// # Returns
+    /// true if both gap-opening criteria are satisfied
+    ///
+    /// # References
+    /// - Crida et al. (2006) - "On the width and shape of gaps"
+    /// - Kanagawa et al. (2015) - "Mass constraint for gap opening"
+    pub fn opens_gap<D: DiskModel>(&self, disk: &D, stellar_mass: Mass) -> bool {
+        let location = self.semi_major_axis;
+        let h_over_r = disk.aspect_ratio(location);
+        let alpha = disk.alpha();
+        let q = self.total_mass().to_solar_masses() / stellar_mass.to_solar_masses();
+
+        // Thermal criterion
+        let thermal = q > h_over_r.powi(3);
+
+        // Viscous criterion
+        let viscous = q > 40.0 * alpha * h_over_r.powi(5);
+
+        thermal && viscous
+    }
+
+    /// Estimate local gas mass available for accretion.
+    ///
+    /// Approximates the gas mass within the Hill sphere.
+    ///
+    /// # Arguments
+    /// * `disk` - Gas disk model
+    ///
+    /// # Returns
+    /// Local gas mass in solar masses
+    pub(crate) fn local_gas_mass<D: DiskModel>(&self, disk: &D) -> Mass {
+        let location = self.semi_major_axis;
+        let r_hill = self.hill_radius(disk.stellar_mass());
+        let sigma_gas = disk.surface_density(location);
+
+        // Mass = π × R_H² × Σ
+        let area_cm2 = std::f64::consts::PI * r_hill.to_cm().powi(2);
+        let mass_g = area_cm2 * sigma_gas.to_grams_per_cm2();
+
+        Mass::from_grams(mass_g)
     }
 
     /// Estimate physical radius from mass and composition.
