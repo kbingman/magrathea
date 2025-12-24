@@ -6,7 +6,8 @@ use units::{Length, Time};
 
 use super::{SimulationState, calculate_timestep};
 use crate::bodies::{
-    OrbitalElements, migration_distance, orbital_elements_to_cartesian, type_i_migration_timescale,
+    OrbitalElements, migration_distance, orbital_elements_to_cartesian,
+    supply_limited_accretion_rate, type_i_migration_timescale,
 };
 use crate::disk::DiskModel;
 
@@ -39,14 +40,27 @@ pub fn step(state: &mut SimulationState) -> Time {
     // 3. Evolve particles
     // TODO: Implement particle evolution
 
-    // 4. Check for gravitational instability
-    // TODO: Implement GI check and planetesimal formation
+    // 4. Check for gravitational instability → planetesimal formation
+    for bin in &mut state.particle_bins {
+        if let Some(_event) = bin.attempt_planetesimal_formation(&state.disk, &mut state.rng) {
+            // TODO: Convert planetesimals to discrete bodies
+            // For now, planetesimals are removed from the bin but not tracked
+            // This depletes the particle population as expected
+        }
+    }
 
     // 5. Discrete body accretion
     // TODO: Implement accretion
 
-    // 6. Envelope evolution
-    // TODO: Implement envelope evolution
+    // 6. Envelope evolution (hydrostatic + runaway accretion)
+    const OPACITY: f64 = 0.01; // Rosseland mean opacity in cm²/g
+    for body in &mut state.discrete_bodies {
+        // Calculate core accretion rate from disk viscosity
+        let core_accretion_rate = supply_limited_accretion_rate(&state.disk, body.semi_major_axis);
+
+        // Evolve envelope (captures gas, transitions to runaway, etc.)
+        body.evolve_envelope(&state.disk, core_accretion_rate, dt, OPACITY);
+    }
 
     // 7. Migration (Type I for embedded planets)
     let stellar_mass = state.disk.stellar_mass();
@@ -243,6 +257,59 @@ mod tests {
             "Body should migrate inward: initial={} AU, final={} AU",
             initial_a.to_au(),
             final_a.to_au()
+        );
+    }
+
+    #[test]
+    fn envelope_evolution_works() {
+        use crate::bodies::{DiscreteBody, EnvelopeState};
+        use nalgebra::{Point2, Vector2};
+        use planetary::composition::Composition;
+        use units::Mass;
+
+        const G: f64 = 39.478417; // AU³ M☉⁻¹ year⁻²
+
+        let star = solar_analog();
+        let stellar_mass = star.mass;
+        let gas_disk = GasDisk::for_star(&star);
+        let grid_disk = crate::disk::GridDisk::from_gas_disk(&gas_disk, 50);
+
+        // Create a 1 M⊕ embryo at 5 AU (sufficient for envelope capture)
+        let a = 5.0; // AU
+        let v_circ = (G * stellar_mass.to_solar_masses() / a).sqrt();
+
+        let body = DiscreteBody::new(
+            Mass::from_earth_masses(1.0), // core
+            Mass::zero(),                 // no initial envelope
+            Point2::new(a, 0.0),
+            Vector2::new(0.0, v_circ),
+            stellar_mass,
+            Composition::earth_like(),
+        );
+
+        let mut state = SimulationState::new(grid_disk, vec![], vec![body]);
+
+        // Initially should have no envelope
+        assert!(matches!(
+            state.discrete_bodies[0].envelope_state,
+            EnvelopeState::None
+        ));
+
+        // Run simulation for some time
+        for _ in 0..10 {
+            step(&mut state);
+        }
+
+        // Should have captured an envelope (hydrostatic or runaway)
+        assert!(
+            !matches!(state.discrete_bodies[0].envelope_state, EnvelopeState::None),
+            "Body should have captured envelope"
+        );
+
+        // Envelope mass should be positive
+        assert!(
+            state.discrete_bodies[0].envelope_mass.to_earth_masses() > 0.0,
+            "Envelope mass should be positive"
         );
     }
 

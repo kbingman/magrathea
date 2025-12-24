@@ -2,6 +2,8 @@
 //!
 //! Holds all the evolving components of the planet formation simulation.
 
+use rand::SeedableRng;
+use rand_chacha::ChaChaRng;
 use units::{Mass, Time};
 
 use crate::bodies::DiscreteBody;
@@ -12,7 +14,6 @@ use crate::particles::ParticleBin;
 ///
 /// This structure contains all the evolving populations and tracks
 /// the current simulation time.
-#[derive(Debug, Clone)]
 pub struct SimulationState {
     /// Current simulation time
     pub time: Time,
@@ -33,10 +34,15 @@ pub struct SimulationState {
     /// (typically > 0.01 M⊕). These interact gravitationally and accrete
     /// from particle bins.
     pub discrete_bodies: Vec<DiscreteBody>,
+
+    /// Random number generator for stochastic processes
+    ///
+    /// Used for planetesimal formation efficiency, collision outcomes, etc.
+    pub rng: ChaChaRng,
 }
 
 impl SimulationState {
-    /// Create a new simulation state.
+    /// Create a new simulation state with default RNG seed.
     ///
     /// # Arguments
     /// * `disk` - Initial gas disk configuration
@@ -50,11 +56,31 @@ impl SimulationState {
         particle_bins: Vec<ParticleBin>,
         discrete_bodies: Vec<DiscreteBody>,
     ) -> Self {
+        Self::with_seed(disk, particle_bins, discrete_bodies, 42)
+    }
+
+    /// Create a new simulation state with a specific RNG seed.
+    ///
+    /// # Arguments
+    /// * `disk` - Initial gas disk configuration
+    /// * `particle_bins` - Initial particle populations
+    /// * `discrete_bodies` - Initial discrete bodies (often empty)
+    /// * `seed` - Seed for the random number generator
+    ///
+    /// # Returns
+    /// New simulation state at t=0
+    pub fn with_seed(
+        disk: GridDisk,
+        particle_bins: Vec<ParticleBin>,
+        discrete_bodies: Vec<DiscreteBody>,
+        seed: u64,
+    ) -> Self {
         Self {
             time: Time::zero(),
             disk,
             particle_bins,
             discrete_bodies,
+            rng: ChaChaRng::seed_from_u64(seed),
         }
     }
 
