@@ -5,6 +5,7 @@
 pub mod bodies;
 pub mod disk;
 pub mod particles;
+pub mod simulation;
 
 // Re-export stellar crate
 pub use stellar;
@@ -26,3 +27,4 @@ pub use bodies::{
 };
 pub use disk::{DiskMass, DiskModel, GasDisk, GridDisk};
 pub use particles::{DragRegime, Particle, ParticleBin, SizeDistribution};
+pub use simulation::{SimulationState, calculate_timestep, run_simulation, step};
