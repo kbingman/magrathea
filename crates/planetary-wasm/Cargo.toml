@@ -9,8 +9,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 planetary = { path = "../planetary", features = ["tsify"] }
-system-generator = { path = "../system-generator" }
-star-system = { path = "../star-system", features = ["tsify"] }
+forge = { path = "../forge" }
+celestial = { path = "../celestial", features = ["tsify"] }
 stellar = { path = "../stellar", features = ["tsify"] }
 protodisk = { path = "../protodisk" }
 units = { path = "../units" }

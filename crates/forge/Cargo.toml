@@ -1,20 +1,17 @@
 [package]
-name = "star-system"
+name = "forge"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-default = []
-tsify = ["dep:tsify-next", "dep:wasm-bindgen", "planetary/tsify", "stellar/tsify"]
-
 [dependencies]
+celestial = { path = "../celestial" }
 planetary = { path = "../planetary" }
 stellar = { path = "../stellar" }
+protodisk = { path = "../protodisk" }
 units = { path = "../units" }
 
 rand = "0.9"
 rand_chacha = "0.9"
+rand_distr = "0.5"
 serde = "1.0"
 uuid = { version = "1.11", features = ["v4", "v5", "serde"] }
-tsify-next = { version = "0.5", optional = true }
-wasm-bindgen = { version = "0.2", optional = true }

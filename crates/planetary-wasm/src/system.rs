@@ -8,13 +8,13 @@ use rand_chacha::ChaChaRng;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
-use planetary::Planet;
-use protodisk::{MainSequenceStar, sample_main_sequence_star, solar_analog};
-use star_system::PlanetarySystem;
-use stellar::StellarObject;
-use system_generator::{
+use celestial::PlanetarySystem;
+use forge::{
     from_star, from_star_with_id, generate_planetary_system, generate_planetary_system_named,
 };
+use planetary::Planet;
+use protodisk::{MainSequenceStar, sample_main_sequence_star, solar_analog};
+use stellar::StellarObject;
 
 // =============================================================================
 // System Generation - Convenience Functions

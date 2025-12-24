@@ -63,6 +63,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "celestial"
+version = "0.1.0"
+dependencies = [
+ "planetary",
+ "rand",
+ "rand_chacha",
+ "serde",
+ "stellar",
+ "tsify-next",
+ "units",
+ "uuid",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -73,6 +88,22 @@ name = "find-msvc-tools"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a3076410a55c90011c298b04d0cfa770b00fa04e1e3c97d3f6c9de105a03844"
+
+[[package]]
+name = "forge"
+version = "0.1.0"
+dependencies = [
+ "celestial",
+ "planetary",
+ "protodisk",
+ "rand",
+ "rand_chacha",
+ "rand_distr",
+ "serde",
+ "stellar",
+ "units",
+ "uuid",
+]
 
 [[package]]
 name = "getrandom"
@@ -421,15 +452,15 @@ dependencies = [
 name = "planetary-wasm"
 version = "0.1.0"
 dependencies = [
+ "celestial",
+ "forge",
  "getrandom",
  "planetary",
  "protodisk",
  "rand",
  "rand_chacha",
  "serde",
- "star-system",
  "stellar",
- "system-generator",
  "tsify-next",
  "units",
  "uuid",
@@ -655,21 +686,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "star-system"
-version = "0.1.0"
-dependencies = [
- "planetary",
- "rand",
- "rand_chacha",
- "serde",
- "stellar",
- "tsify-next",
- "units",
- "uuid",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "stellar"
 version = "0.1.0"
 dependencies = [
@@ -692,22 +708,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "system-generator"
-version = "0.1.0"
-dependencies = [
- "planetary",
- "protodisk",
- "rand",
- "rand_chacha",
- "rand_distr",
- "serde",
- "star-system",
- "stellar",
- "units",
- "uuid",
 ]
 
 [[package]]

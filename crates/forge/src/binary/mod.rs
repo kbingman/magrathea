@@ -13,8 +13,8 @@ pub use generation::{
     sample_mass_ratio, sample_separation,
 };
 
-// Re-export binary types from star-system for convenience
-pub use star_system::binary::{
+// Re-export binary types from celestial for convenience
+pub use celestial::binary::{
     BinaryConfiguration, BinaryOrbitType, OrbitalParameters, habitable_zone,
     p_type_stability_limit, s_type_stability_limit, stable_orbital_range,
 };

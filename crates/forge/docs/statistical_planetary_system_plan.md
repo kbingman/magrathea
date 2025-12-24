@@ -116,7 +116,7 @@ crates/
 │       ├── planet.rs       # Planet struct, M-R relations, HostStar
 │       └── composition.rs  # Composition (iron/silicate/water/H-He)
 │
-├── star-system/            # Unified output types for all backends
+├── celestial/            # Unified output types for all backends
 │   ├── Cargo.toml
 │   └── src/
 │       ├── lib.rs          # Re-exports
@@ -142,7 +142,7 @@ serde = { version = "1.0", features = ["derive"] }
 rand = "0.9"
 rand_chacha = "0.9"
 
-# star-system/Cargo.toml
+# celestial/Cargo.toml
 [dependencies]
 planetary = { path = "../planetary" }
 stellar = { path = "../stellar" }
@@ -153,7 +153,7 @@ serde = "1.0"
 # planetary-generator/Cargo.toml
 [dependencies]
 planetary = { path = "../planetary" }
-star-system = { path = "../star-system" }
+celestial = { path = "../celestial" }
 stellar = { path = "../stellar" }
 units = { path = "../units" }
 uuid = { version = "1.11", features = ["v4", "v5"] }
@@ -205,7 +205,7 @@ pub struct Planet {
     pub escape_velocity: f64,   // m/s
 }
 
-// System architecture classification (in star-system crate)
+// System architecture classification (in celestial crate)
 pub enum SystemArchitecture {
     CompactMulti,    // TRAPPIST-1 style
     Mixed,           // Solar System style
@@ -213,7 +213,7 @@ pub enum SystemArchitecture {
     Sparse,          // Few or no planets
 }
 
-// System metadata (in star-system crate)
+// System metadata (in celestial crate)
 pub struct SystemMetadata {
     pub id: Uuid,
     pub generation_method: GenerationMethod,
@@ -221,7 +221,7 @@ pub struct SystemMetadata {
     pub name: Option<String>,
 }
 
-// Complete system (in star-system crate)
+// Complete system (in celestial crate)
 pub struct PlanetarySystem {
     pub stars: Vec<StellarObject>,  // At least one star
     pub planets: Vec<Planet>,       // Sorted by semi-major axis
@@ -261,7 +261,7 @@ pub struct PlanetarySystem {
 
 ```rust
 use stellar_forge::solar_analog;
-use system_generator::{generate_planetary_system, from_star};
+use forge::{generate_planetary_system, from_star};
 use uuid::Uuid;
 
 // From a StellarObject with specific UUID
@@ -290,7 +290,7 @@ let system = from_star(&star);
 ### Reproducible Generation
 
 ```rust
-use system_generator::generate_planetary_system_named;
+use forge::generate_planetary_system_named;
 use protodisk::solar_analog;
 use stellar::StellarObject;
 
@@ -309,7 +309,7 @@ assert_eq!(system1.metadata.id, system2.metadata.id);
 use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use protodisk::sample_main_sequence_star;
-use system_generator::from_star;
+use forge::from_star;
 
 let mut rng = ChaChaRng::seed_from_u64(42);
 
@@ -334,7 +334,7 @@ println!("Compact multi-planet systems: {}/1000", compact);
 
 ### Phase 1: Core Implementation ✅ (Complete)
 
-- [x] Basic crate structure (split into `planetary`, `star-system`, `planetary-generator`)
+- [x] Basic crate structure (split into `planetary`, `celestial`, `planetary-generator`)
 - [x] PlanetClass and PlanetType enums
 - [x] Planet struct with M-R relations
 - [x] Composition system with detailed breakdowns
@@ -385,7 +385,7 @@ The `planetary-generator` crate integrates directly with the stellar generation 
 ```rust
 use protodisk::{sample_main_sequence_star, solar_analog};
 use stellar::StellarObject;
-use system_generator::{generate_planetary_system, from_star, from_star_with_id};
+use forge::{generate_planetary_system, from_star, from_star_with_id};
 use uuid::Uuid;
 
 // Method 1: From MainSequenceStar (convenience)
@@ -408,13 +408,13 @@ assert!(matches!(system.metadata.generation_method, GenerationMethod::Statistica
 
 ### Multiple Backends
 
-The `star-system` crate defines the unified output format, allowing multiple generation backends:
+The `celestial` crate defines the unified output format, allowing multiple generation backends:
 
 ```rust
-use star_system::{PlanetarySystem, GenerationMethod};
+use celestial::{PlanetarySystem, GenerationMethod};
 
 // Statistical generator (fast, occurrence-rate based)
-let system = system_generator::from_star(&star);
+let system = forge::from_star(&star);
 assert_eq!(system.metadata.generation_method, GenerationMethod::Statistical);
 
 // Future: Physics-based formation simulation

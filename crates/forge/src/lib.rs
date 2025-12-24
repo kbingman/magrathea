@@ -27,8 +27,8 @@ pub use binary::{
     stable_orbital_range,
 };
 
-// Re-export star-system types for convenience
-pub use star_system::{
+// Re-export celestial types for convenience
+pub use celestial::{
     GenerationMethod, HabitableZone, PlanetarySystem, SystemArchitecture, SystemMetadata,
 };
 

@@ -1,6 +1,6 @@
 //! Generate planetary systems and export to CSV for analysis
 //!
-//! Usage: cargo run -p system-generator --example generate_systems
+//! Usage: cargo run -p forge --example generate_systems
 //!
 //! Output: systems.csv in current directory
 
@@ -8,8 +8,8 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use stellar::sample_main_sequence_star;
 
+use forge::from_star;
 use planetary::planet_class::PlanetClass;
-use system_generator::from_star;
 
 fn main() {
     let mut rng = ChaChaRng::seed_from_u64(42);

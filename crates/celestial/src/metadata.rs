@@ -95,7 +95,7 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
+    /// use celestial::{SystemMetadata, GenerationMethod, SystemArchitecture};
     ///
     /// let meta = SystemMetadata::new_random(
     ///     GenerationMethod::Statistical,
@@ -112,7 +112,7 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
+    /// use celestial::{SystemMetadata, GenerationMethod, SystemArchitecture};
     ///
     /// // Without proper name - uses catalog name
     /// let meta = SystemMetadata::new_random(
@@ -135,7 +135,7 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
+    /// use celestial::{SystemMetadata, GenerationMethod, SystemArchitecture};
     ///
     /// let meta = SystemMetadata::new_random(
     ///     GenerationMethod::Statistical,
@@ -185,7 +185,7 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
+    /// use celestial::{SystemMetadata, GenerationMethod, SystemArchitecture};
     ///
     /// let meta1 = SystemMetadata::from_seed_name(
     ///     "test-system-42",
@@ -221,7 +221,7 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{SystemMetadata, GenerationMethod, SystemArchitecture};
+    /// use celestial::{SystemMetadata, GenerationMethod, SystemArchitecture};
     ///
     /// let meta = SystemMetadata::new_random(
     ///     GenerationMethod::Manual,
@@ -240,7 +240,7 @@ impl SystemMetadata {
     ///
     /// # Example
     /// ```
-    /// use star_system::{
+    /// use celestial::{
     ///     SystemMetadata,
     ///     GenerationMethod,
     ///     SystemArchitecture,

@@ -1,13 +1,13 @@
 //! Generate planetary systems around solar analog stars and export to CSV
 //!
-//! Usage: cargo run -p system-generator --example generate_solar_systems
+//! Usage: cargo run -p forge --example generate_solar_systems
 //!
 //! Output: solar_systems.csv in current directory
 
 use stellar::solar_analog;
 
+use forge::from_star;
 use planetary::planet_class::PlanetClass;
-use system_generator::from_star;
 
 fn main() {
     let n_systems = 1000;

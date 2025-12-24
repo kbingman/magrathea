@@ -23,7 +23,7 @@ const EARTH_MASSES_PER_SOLAR: f64 = SOLAR_MASS_G / EARTH_MASS_G;
 /// # Examples
 ///
 /// ```
-/// use star_system::{PlanetarySystem, SystemArchitecture, SystemMetadata, GenerationMethod};
+/// use celestial::{PlanetarySystem, SystemArchitecture, SystemMetadata, GenerationMethod};
 /// use stellar::StellarObject;
 ///
 /// // Systems are typically created via generation functions,

@@ -1,6 +1,6 @@
 //! Generate planets CSV with individual planet data from IMF-sampled stars
 //!
-//! Usage: cargo run -p system-generator --example generate_planets_imf
+//! Usage: cargo run -p forge --example generate_planets_imf
 //!
 //! Output: planets_imf.csv with one row per planet
 
@@ -8,7 +8,7 @@ use rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 use stellar::sample_main_sequence_star;
 
-use system_generator::from_star;
+use forge::from_star;
 
 fn main() {
     let mut rng = ChaChaRng::seed_from_u64(42);
