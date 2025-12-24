@@ -9,7 +9,7 @@ use units::{Length, Mass, SurfaceDensity, Time};
 use protodisk::bodies::DiscreteBody;
 use protodisk::disk::{DiskMass, DiskModel, GasDisk, GridDisk};
 use protodisk::particles::ParticleBin;
-use protodisk::{run_simulation, solar_analog, step, SimulationState};
+use protodisk::{SimulationState, run_simulation, solar_analog, step};
 
 const G: f64 = 39.478417; // AU³ M☉⁻¹ year⁻²
 
