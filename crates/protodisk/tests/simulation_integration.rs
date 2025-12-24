@@ -209,13 +209,67 @@ fn planetesimal_formation_from_unstable_layer() {
         "Total planetesimal mass formed: {:.2e} M⊕",
         total_formed_mass.to_earth_masses()
     );
+    println!("Discrete bodies created: {}", state.discrete_bodies.len());
+
+    if !state.discrete_bodies.is_empty() {
+        println!("\nPlanetesimal bodies:");
+        for (i, body) in state.discrete_bodies.iter().enumerate() {
+            println!(
+                "  Body {}: {:.2} AU, {:.2e} M⊕",
+                i,
+                body.semi_major_axis.to_au(),
+                body.total_mass().to_earth_masses()
+            );
+        }
+    }
 
     // Should have formed some planetesimals
     assert!(
         total_formed_mass.to_earth_masses() > 0.0,
         "Should form planetesimals from unstable layer"
     );
-    println!("✓ Planetesimal formation working");
+
+    // Should have created discrete bodies
+    assert!(
+        state.discrete_bodies.len() > 0,
+        "Should have created discrete bodies from planetesimal formation"
+    );
+
+    // Bodies should be near the formation location
+    for body in &state.discrete_bodies {
+        let distance = (body.semi_major_axis.to_au() - r.to_au()).abs();
+        assert!(
+            distance < width.to_au(),
+            "Planetesimal at {:.2} AU should be within {:.2} AU of formation location {:.2} AU",
+            body.semi_major_axis.to_au(),
+            width.to_au(),
+            r.to_au()
+        );
+    }
+
+    // Total mass in bodies should roughly match mass depleted from bin
+    let total_body_mass: Mass = state
+        .discrete_bodies
+        .iter()
+        .map(|b| b.total_mass())
+        .fold(Mass::zero(), |acc, m| acc + m);
+
+    println!(
+        "\nMass conservation: Formed {:.2e} M⊕, Bodies contain {:.2e} M⊕",
+        total_formed_mass.to_earth_masses(),
+        total_body_mass.to_earth_masses()
+    );
+
+    // Mass should be approximately conserved (within 10% for rounding)
+    let mass_ratio = total_body_mass.to_earth_masses() / total_formed_mass.to_earth_masses();
+    assert!(
+        (mass_ratio - 1.0).abs() < 0.1,
+        "Mass in bodies ({:.2e} M⊕) should match depleted mass ({:.2e} M⊕)",
+        total_body_mass.to_earth_masses(),
+        total_formed_mass.to_earth_masses()
+    );
+
+    println!("✓ Planetesimal formation and tracking working");
 }
 
 #[test]

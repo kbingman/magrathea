@@ -2,6 +2,7 @@
 //!
 //! Orchestrates all physical processes in the correct order each timestep.
 
+use rand::Rng;
 use units::{Length, Mass, SurfaceDensity, Time};
 
 use super::{SimulationState, calculate_timestep};
@@ -59,16 +60,67 @@ pub fn step(state: &mut SimulationState) -> Time {
     }
 
     // 4. Check for gravitational instability → planetesimal formation
+    let stellar_mass = state.disk.stellar_mass();
+    let mut new_planetesimals = Vec::new();
+
     for bin in &mut state.particle_bins {
-        if let Some(_event) = bin.attempt_planetesimal_formation(&state.disk, &mut state.rng) {
-            // TODO: Convert planetesimals to discrete bodies
-            // For now, planetesimals are removed from the bin but not tracked
-            // This depletes the particle population as expected
+        if let Some(event) = bin.attempt_planetesimal_formation(&state.disk, &mut state.rng) {
+            // Convert planetesimal formation event to discrete bodies
+            // Create a small number of representative bodies (max 5) to keep N manageable
+            let num_formed = event.number_formed();
+            let num_to_create = num_formed.min(5.0).max(1.0) as usize;
+            let mass_per_body = event.total_mass / (num_to_create as f64);
+
+            for _ in 0..num_to_create {
+                // Place in circular orbit at formation location
+                // Add small random offsets to semi-major axis (±1% of width)
+                let a_base = event.location.to_au();
+                let da = 0.01 * state.rng.random::<f64>() - 0.005; // ±0.5%
+                let a = a_base * (1.0 + da);
+
+                // Small random eccentricity (0-0.05)
+                let e = 0.05 * state.rng.random::<f64>();
+
+                // Small random inclination (0-2 degrees)
+                let i = (2.0 * std::f64::consts::PI / 180.0) * state.rng.random::<f64>();
+
+                // Random mean anomaly (0-2π)
+                let mean_anomaly = 2.0 * std::f64::consts::PI * state.rng.random::<f64>();
+
+                // Create orbital elements
+                let elements = OrbitalElements {
+                    semi_major_axis: Length::from_au(a),
+                    eccentricity: e,
+                    inclination: i,
+                    longitude_ascending_node: 2.0
+                        * std::f64::consts::PI
+                        * state.rng.random::<f64>(),
+                    argument_of_periapsis: 2.0 * std::f64::consts::PI * state.rng.random::<f64>(),
+                    mean_anomaly,
+                };
+
+                // Convert to Cartesian coordinates
+                let (pos, vel) = orbital_elements_to_cartesian(&elements, stellar_mass);
+
+                // Create planetesimal (rocky composition, no envelope)
+                let planetesimal = crate::bodies::DiscreteBody::new(
+                    mass_per_body,
+                    Mass::zero(), // No envelope
+                    pos,
+                    vel,
+                    stellar_mass,
+                    planetary::composition::Composition::earth_like(), // Rocky
+                );
+
+                new_planetesimals.push(planetesimal);
+            }
         }
     }
 
+    // Add newly formed planetesimals to the simulation
+    state.discrete_bodies.extend(new_planetesimals);
+
     // 5. Discrete body accretion from particle bins
-    let stellar_mass = state.disk.stellar_mass();
 
     // Process each body-bin interaction
     for body in &mut state.discrete_bodies {
