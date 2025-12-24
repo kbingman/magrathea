@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-// import { playwright } from "@vitest/browser-playwright";
+import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
   test: {
@@ -13,8 +13,6 @@ export default defineConfig({
       ],
       headless: true,
     },
-    // Global test setup
-    setupFiles: ["./crates/render/test/setup.ts"],
     // Include test files
     include: [
       "crates/**/test/*.{test,spec}.{js,ts,jsx,tsx}",

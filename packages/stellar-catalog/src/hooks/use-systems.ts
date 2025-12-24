@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import init, {
   generateSystemsBatch,
-  type MainSequenceStar,
   type PlanetarySystem,
 } from "@magrathea/planetary-wasm";
 import { filterBySpectralType } from "../utils/stars";
