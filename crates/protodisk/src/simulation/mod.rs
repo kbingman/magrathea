@@ -49,6 +49,9 @@ mod driver;
 mod state;
 mod timestep;
 
+#[cfg(test)]
+mod integration_test;
+
 pub use driver::{run_simulation, step};
 pub use state::SimulationState;
 pub use timestep::calculate_timestep;
