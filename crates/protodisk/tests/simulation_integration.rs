@@ -6,11 +6,10 @@ use nalgebra::{Point2, Vector2};
 use planetary::composition::Composition;
 use units::{Length, Mass, SurfaceDensity, Time};
 
-use super::{SimulationState, run_simulation, step};
-use crate::bodies::DiscreteBody;
-use crate::disk::{DiskMass, DiskModel, GasDisk};
-use crate::particles::ParticleBin;
-use crate::solar_analog;
+use protodisk::bodies::DiscreteBody;
+use protodisk::disk::{DiskMass, DiskModel, GasDisk, GridDisk};
+use protodisk::particles::ParticleBin;
+use protodisk::{run_simulation, solar_analog, step, SimulationState};
 
 const G: f64 = 39.478417; // AU³ M☉⁻¹ year⁻²
 
@@ -21,7 +20,7 @@ fn full_simulation_integration() {
 
     // Create gas disk
     let gas_disk = GasDisk::for_star(&star);
-    let grid_disk = crate::disk::GridDisk::from_gas_disk(&gas_disk, 50);
+    let grid_disk = GridDisk::from_gas_disk(&gas_disk, 50);
 
     // Create some particle bins at different radii
     let particle_bins = vec![
@@ -152,7 +151,7 @@ fn full_simulation_integration() {
 fn planetesimal_formation_from_unstable_layer() {
     let star = solar_analog();
     let gas_disk = GasDisk::for_star(&star);
-    let grid_disk = crate::disk::GridDisk::from_gas_disk(&gas_disk, 50);
+    let grid_disk = GridDisk::from_gas_disk(&gas_disk, 50);
 
     // Create a dense, settled particle bin (gravitationally unstable)
     let r = Length::from_au(5.0);
@@ -224,7 +223,7 @@ fn multiple_planets_evolve_independently() {
     let star = solar_analog();
     let stellar_mass = star.mass;
     let gas_disk = GasDisk::for_star(&star);
-    let grid_disk = crate::disk::GridDisk::from_gas_disk(&gas_disk, 50);
+    let grid_disk = GridDisk::from_gas_disk(&gas_disk, 50);
 
     // Create three protoplanets at different locations
     let planets = vec![
@@ -318,7 +317,7 @@ fn run_until_completion() {
     let star = solar_analog();
     let stellar_mass = star.mass;
     let gas_disk = GasDisk::for_star(&star);
-    let grid_disk = crate::disk::GridDisk::from_gas_disk(&gas_disk, 50);
+    let grid_disk = GridDisk::from_gas_disk(&gas_disk, 50);
 
     // Create a super-Earth
     let a = 3.0;
