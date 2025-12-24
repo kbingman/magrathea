@@ -68,7 +68,7 @@ pub fn step(state: &mut SimulationState) -> Time {
             // Convert planetesimal formation event to discrete bodies
             // Create a small number of representative bodies (max 5) to keep N manageable
             let num_formed = event.number_formed();
-            let num_to_create = num_formed.min(5.0).max(1.0) as usize;
+            let num_to_create = num_formed.clamp(1.0, 5.0) as usize;
             let mass_per_body = event.total_mass / (num_to_create as f64);
 
             for _ in 0..num_to_create {
