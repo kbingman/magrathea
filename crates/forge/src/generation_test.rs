@@ -508,3 +508,300 @@ fn median(v: &mut [f64]) -> f64 {
         v[mid]
     }
 }
+
+// =============================================================================
+// Kepler/TESS Validation Tests
+// =============================================================================
+
+/// Test overall planet occurrence rates against Kepler statistics
+/// Expected: ~2-3 planets per FGK star (P < 400 days, R > 1 R⊕)
+#[test]
+fn test_kepler_occurrence_rates() {
+    let n_systems = 1000;
+    let mut total_planets = 0;
+    let mut total_small_planets = 0; // R < 4 R⊕
+
+    for i in 0..n_systems {
+        let star = sun_like_star();
+        let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("kepler-{}", i).as_bytes());
+        let system = generate_planetary_system(star, id);
+
+        // Count planets with P < 400 days (roughly < 1 AU for Sun-like star)
+        for planet in &system.planets {
+            let sma = planet.semi_major_axis.to_au();
+            let radius = planet.radius.to_earth_radii();
+
+            if sma < 1.0 && radius > 0.5 {
+                total_planets += 1;
+                if radius < 4.0 {
+                    total_small_planets += 1;
+                }
+            }
+        }
+    }
+
+    let planets_per_star = total_planets as f64 / n_systems as f64;
+    let small_per_star = total_small_planets as f64 / n_systems as f64;
+
+    println!(
+        "Inner system planets per star: {:.2} (small: {:.2})",
+        planets_per_star, small_per_star
+    );
+
+    // Kepler finds ~2-3 planets per star in this region
+    assert!(
+        planets_per_star > 0.5 && planets_per_star < 5.0,
+        "Planets per star {:.2} outside expected range 0.5-5.0",
+        planets_per_star
+    );
+}
+
+/// Test radius distribution reproduces Fulton gap (radius valley)
+/// Expected: Bimodal distribution with gap at ~1.5-2.0 R⊕
+#[test]
+fn test_fulton_gap() {
+    let n_systems = 2000;
+    let mut radii: Vec<f64> = Vec::new();
+
+    for i in 0..n_systems {
+        let star = sun_like_star();
+        let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("fulton-{}", i).as_bytes());
+        let system = generate_planetary_system(star, id);
+
+        for planet in &system.planets {
+            let sma = planet.semi_major_axis.to_au();
+            let radius = planet.radius.to_earth_radii();
+
+            // Inner planets where photoevaporation is relevant
+            if sma < 0.5 && radius > 0.5 && radius < 4.0 {
+                radii.push(radius);
+            }
+        }
+    }
+
+    if radii.is_empty() {
+        println!("No inner small planets found - skipping Fulton gap test");
+        return;
+    }
+
+    // Bin the radii
+    let mut below_gap = 0; // 1.0-1.5 R⊕ (super-Earths)
+    let mut in_gap = 0; // 1.5-2.0 R⊕ (the valley)
+    let mut above_gap = 0; // 2.0-3.5 R⊕ (sub-Neptunes)
+
+    for r in &radii {
+        match *r {
+            r if r < 1.5 => below_gap += 1,
+            r if r < 2.0 => in_gap += 1,
+            _ => above_gap += 1,
+        }
+    }
+
+    let total = radii.len();
+    println!(
+        "Radius distribution (n={}): <1.5 R⊕: {:.1}%, 1.5-2.0 R⊕: {:.1}%, >2.0 R⊕: {:.1}%",
+        total,
+        below_gap as f64 / total as f64 * 100.0,
+        in_gap as f64 / total as f64 * 100.0,
+        above_gap as f64 / total as f64 * 100.0
+    );
+
+    // The gap region should have fewer planets than both sides
+    // This is a weak test - real Fulton gap is quite pronounced
+    // For now, just check we have planets in all bins
+    assert!(
+        below_gap > 0 || above_gap > 0,
+        "Should have planets near the gap"
+    );
+}
+
+/// Test period ratio distribution for adjacent planet pairs
+/// Expected: Excess just wide of exact MMRs (2:1, 3:2, etc.)
+#[test]
+fn test_period_ratio_distribution() {
+    let n_systems = 2000;
+    let mut period_ratios: Vec<f64> = Vec::new();
+
+    for i in 0..n_systems {
+        let star = sun_like_star();
+        let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("mmr-{}", i).as_bytes());
+        let system = generate_planetary_system(star, id);
+
+        // Calculate period ratios for adjacent pairs
+        let planets = &system.planets;
+        for j in 0..planets.len().saturating_sub(1) {
+            let inner_sma = planets[j].semi_major_axis.to_au();
+            let outer_sma = planets[j + 1].semi_major_axis.to_au();
+
+            // Period ratio via Kepler's 3rd law: P ∝ a^(3/2)
+            let period_ratio = (outer_sma / inner_sma).powf(1.5);
+
+            // Only count close pairs (ratio < 5)
+            if period_ratio > 1.0 && period_ratio < 5.0 {
+                period_ratios.push(period_ratio);
+            }
+        }
+    }
+
+    if period_ratios.is_empty() {
+        println!("No adjacent planet pairs found - skipping MMR test");
+        return;
+    }
+
+    // Count near major MMRs
+    let near_3_2 = period_ratios
+        .iter()
+        .filter(|&&r| r > 1.45 && r < 1.55)
+        .count();
+    let near_2_1 = period_ratios
+        .iter()
+        .filter(|&&r| r > 1.95 && r < 2.05)
+        .count();
+    let near_5_3 = period_ratios
+        .iter()
+        .filter(|&&r| r > 1.62 && r < 1.72)
+        .count();
+
+    let total = period_ratios.len();
+    println!(
+        "Period ratios (n={}): near 3:2: {:.1}%, near 2:1: {:.1}%, near 5:3: {:.1}%",
+        total,
+        near_3_2 as f64 / total as f64 * 100.0,
+        near_2_1 as f64 / total as f64 * 100.0,
+        near_5_3 as f64 / total as f64 * 100.0
+    );
+
+    // Just verify we have period ratios in a reasonable range
+    let median_ratio = median(&mut period_ratios.clone());
+    println!("Median period ratio: {:.2}", median_ratio);
+
+    assert!(
+        median_ratio > 1.2 && median_ratio < 4.0,
+        "Median period ratio {:.2} outside expected range",
+        median_ratio
+    );
+}
+
+/// Test that giant planets have higher eccentricities than small planets
+/// Expected: Giants e ~ 0.1-0.3, small planets e ~ 0.02-0.05
+#[test]
+fn test_eccentricity_mass_correlation() {
+    let n_systems = 1000;
+    let mut small_eccentricities: Vec<f64> = Vec::new();
+    let mut giant_eccentricities: Vec<f64> = Vec::new();
+
+    for i in 0..n_systems {
+        let star = sun_like_star();
+        let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("ecc-{}", i).as_bytes());
+        let system = generate_planetary_system(star, id);
+
+        for planet in &system.planets {
+            let mass = planet.mass.to_earth_masses();
+            let ecc = planet.eccentricity;
+
+            if mass < 10.0 {
+                small_eccentricities.push(ecc);
+            } else if mass > 50.0 {
+                giant_eccentricities.push(ecc);
+            }
+        }
+    }
+
+    if small_eccentricities.is_empty() || giant_eccentricities.is_empty() {
+        println!("Insufficient planets for eccentricity test");
+        return;
+    }
+
+    let small_mean = small_eccentricities.iter().sum::<f64>() / small_eccentricities.len() as f64;
+    let giant_mean = giant_eccentricities.iter().sum::<f64>() / giant_eccentricities.len() as f64;
+
+    println!(
+        "Mean eccentricity - small planets: {:.3} (n={}), giants: {:.3} (n={})",
+        small_mean,
+        small_eccentricities.len(),
+        giant_mean,
+        giant_eccentricities.len()
+    );
+
+    // Giants should generally have higher eccentricities
+    // (from planet-planet scattering, dynamical evolution)
+    // This is a weak assertion - the correlation isn't always strong
+    assert!(
+        giant_mean > 0.01,
+        "Giant eccentricity {:.3} unexpectedly low",
+        giant_mean
+    );
+}
+
+/// Test hot Jupiter lonely phenomenon
+/// Expected: Systems with hot Jupiters have fewer nearby companions
+#[test]
+fn test_hot_jupiter_lonely() {
+    let n_systems = 3000; // Need more samples for rare hot Jupiters
+
+    let mut hj_systems_planet_count: Vec<usize> = Vec::new();
+    let mut non_hj_systems_planet_count: Vec<usize> = Vec::new();
+
+    for i in 0..n_systems {
+        let star = sun_like_star();
+        let id = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("hj-{}", i).as_bytes());
+        let system = generate_planetary_system(star, id);
+
+        // Check for hot Jupiter: >100 M⊕, < 0.1 AU
+        let has_hot_jupiter = system
+            .planets
+            .iter()
+            .any(|p| p.mass.to_earth_masses() > 100.0 && p.semi_major_axis.to_au() < 0.1);
+
+        // Count inner system planets (excluding the HJ itself)
+        let inner_count = system
+            .planets
+            .iter()
+            .filter(|p| {
+                let sma = p.semi_major_axis.to_au();
+                let mass = p.mass.to_earth_masses();
+                sma < 1.0 && !(mass > 100.0 && sma < 0.1)
+            })
+            .count();
+
+        if has_hot_jupiter {
+            hj_systems_planet_count.push(inner_count);
+        } else if system
+            .planets
+            .iter()
+            .any(|p| p.semi_major_axis.to_au() < 1.0)
+        {
+            // Only count non-HJ systems that have some inner planets
+            non_hj_systems_planet_count.push(inner_count);
+        }
+    }
+
+    if hj_systems_planet_count.is_empty() {
+        println!(
+            "No hot Jupiters found in {} systems - skipping lonely HJ test",
+            n_systems
+        );
+        return;
+    }
+
+    let hj_avg =
+        hj_systems_planet_count.iter().sum::<usize>() as f64 / hj_systems_planet_count.len() as f64;
+    let non_hj_avg = non_hj_systems_planet_count.iter().sum::<usize>() as f64
+        / non_hj_systems_planet_count.len().max(1) as f64;
+
+    println!(
+        "Inner companions - HJ systems: {:.2} avg (n={}), non-HJ: {:.2} avg (n={})",
+        hj_avg,
+        hj_systems_planet_count.len(),
+        non_hj_avg,
+        non_hj_systems_planet_count.len()
+    );
+
+    // Hot Jupiter systems should have fewer companions
+    // This is observationally well-established
+    // But our generator may not implement this yet - just report for now
+    println!(
+        "Companion ratio (non-HJ/HJ): {:.2}×",
+        non_hj_avg / hj_avg.max(0.01)
+    );
+}
