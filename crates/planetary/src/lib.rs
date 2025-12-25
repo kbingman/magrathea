@@ -15,9 +15,13 @@
 //! - **[`AtmosphereType`]** - Atmospheric composition classification
 //! - **[`Temperature`]** - Equilibrium and effective temperature calculations
 //! - **[`Composition`]** - Bulk composition (iron, rock, water, gas fractions)
+//! - **[`ThermalState`]** - Internal heating and thermal evolution
+//! - **[`GeologicalActivity`]** - Volcanism and tectonics
 
 pub mod atmosphere;
 pub mod composition;
+pub mod geology;
+pub mod interior;
 pub mod planet;
 pub mod planet_class;
 pub mod planet_type;
@@ -26,6 +30,8 @@ pub mod temperature;
 // Re-export key types at crate root
 pub use atmosphere::AtmosphereType;
 pub use composition::Composition;
+pub use geology::{GeologicalActivity, TectonicRegime, VolcanismLevel};
+pub use interior::{DifferentiationState, HeatSource, ThermalState};
 pub use planet::{HostStar, Planet};
 pub use planet_class::PlanetClass;
 pub use planet_type::PlanetType;
@@ -35,6 +41,10 @@ pub use temperature::{Temperature, TemperatureClass};
 mod atmosphere_test;
 #[cfg(test)]
 mod composition_test;
+#[cfg(test)]
+mod geology_test;
+#[cfg(test)]
+mod interior_test;
 #[cfg(test)]
 mod planet_class_test;
 #[cfg(test)]
