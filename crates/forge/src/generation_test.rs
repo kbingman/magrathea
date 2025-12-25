@@ -510,13 +510,36 @@ fn median(v: &mut [f64]) -> f64 {
 }
 
 // =============================================================================
-// Kepler/TESS Validation Tests
+// Population Validation Tests
+// =============================================================================
+//
+// PHILOSOPHY: These tests validate that generated systems are *plausible*,
+// not that they match Kepler statistics exactly.
+//
+// Kepler has massive observational biases:
+// - Transit geometry: ~1% of planets at 1 AU transit their star
+// - Size bias: Small planets produce shallow, hard-to-detect transits
+// - Period bias: Need multiple transits, favoring short periods
+// - Host star bias: Active stars hide planetary signals
+//
+// This means Kepler occurrence rates are LOWER BOUNDS. The true occurrence
+// is likely 2-10× higher, especially for:
+// - Small planets (< 2 R⊕)
+// - Long-period planets (> 100 days)
+// - Planets around M dwarfs and active stars
+//
+// Our goal is to generate what's ACTUALLY THERE, not what Kepler can detect.
+// Multi-planet systems are probably the norm. The Solar System is probably
+// typical, not special. Every star likely has *something*.
+//
+// TODO: Increase planet occurrence rates significantly. Current rates are
+// calibrated to Kepler but should be boosted to reflect true populations.
 // =============================================================================
 
-/// Test overall planet occurrence rates against Kepler statistics
-/// Expected: ~2-3 planets per FGK star (P < 400 days, R > 1 R⊕)
+/// Test overall planet occurrence rates
+/// Currently calibrated to Kepler, but should be HIGHER for true populations
 #[test]
-fn test_kepler_occurrence_rates() {
+fn test_inner_system_occurrence_rates() {
     let n_systems = 1000;
     let mut total_planets = 0;
     let mut total_small_planets = 0; // R < 4 R⊕
@@ -548,10 +571,11 @@ fn test_kepler_occurrence_rates() {
         planets_per_star, small_per_star
     );
 
-    // Kepler finds ~2-3 planets per star in this region
+    // Kepler detects ~2-3, true occurrence likely 3-6+
+    // Allow wide range as we tune upward
     assert!(
-        planets_per_star > 0.5 && planets_per_star < 5.0,
-        "Planets per star {:.2} outside expected range 0.5-5.0",
+        planets_per_star > 0.5 && planets_per_star < 10.0,
+        "Planets per star {:.2} outside plausible range 0.5-10.0",
         planets_per_star
     );
 }
