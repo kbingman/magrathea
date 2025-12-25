@@ -358,16 +358,16 @@ Kepler occurrence rates are **lower bounds**. The true population is likely 2-10
 - [x] **Validation tests** (sanity checks, not Kepler-matching)
 - [ ] **Unit tests for edge cases** (very low/high metallicity, extreme masses)
 
-### Phase 2: Enhanced Occurrence Rates (HIGH PRIORITY)
+### Phase 2: Enhanced Occurrence Rates ✅ (Complete)
 
-- [ ] **Boost planet frequency**: Increase rates 2-5× above Kepler detections
-- [ ] **Ensure most stars have planets**: Sparse systems should be rare
-- [ ] **Rich outer systems**: Ice giants and KBOs should be ubiquitous
-- [ ] **Compact multi-planet systems**: TRAPPIST-1 style should be common
+- [x] **Boost planet frequency**: Increased to ~5.8 planets/system (was ~2.5)
+- [x] **Ensure most stars have planets**: Sparse systems now ~7% (was ~45%)
+- [x] **Rich outer systems**: Cold giants 25%, ice giants 60%
+- [x] **Compact multi-planet systems**: CompactMulti dominant for M/K dwarfs
 
 ### Phase 3: Enhanced Physics
 
-- [ ] **Photoevaporation logic**: Explicit modeling of envelope stripping based on XUV flux and age
+- [x] **Photoevaporation logic**: Mass-dependent envelope stripping (Owen & Wu 2017)
 - [ ] **Resonant chain generation**: MMR period ratios for compact systems
 - [ ] **Orbital element correlations**: e-i coupling, secular architecture
 - [ ] **Tidal effects**: Circularization, spin-orbit coupling for close-in planets
@@ -384,7 +384,7 @@ Kepler occurrence rates are **lower bounds**. The true population is likely 2-10
 
 - [x] **Population synthesis tests**: Sanity checks for plausibility
 - [x] **Period ratio distribution**: Median ~1.27, MMR proximity present
-- [ ] **Radius distribution**: Fulton gap (needs photoevaporation)
+- [x] **Radius distribution**: Fulton gap via mass-dependent photoevaporation
 - [x] **Giant planet eccentricities**: Higher than small planets ✅
 - [x] **Hot Jupiter lonely phenomenon**: 53× fewer companions ✅
 

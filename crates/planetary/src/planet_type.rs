@@ -29,8 +29,37 @@ pub mod temperature {
 
 /// Flux thresholds (in Earth flux units, F⊕)
 pub mod flux {
-    /// Above this, transitional planets likely stripped to rocky core
-    pub const EVAPORATION_THRESHOLD: f64 = 100.0;
+    /// Base flux threshold for photoevaporation at reference mass (2 M⊕)
+    /// Planets receiving more than this flux lose their H/He envelopes.
+    /// From Owen & Wu (2017) and Lopez & Fortney (2014).
+    pub const EVAPORATION_BASE_FLUX: f64 = 20.0;
+
+    /// Reference mass for evaporation threshold (Earth masses)
+    pub const EVAPORATION_REF_MASS: f64 = 2.0;
+
+    /// Power law exponent for mass scaling of evaporation threshold
+    /// Higher mass → stronger gravity → can resist more flux
+    /// α ≈ 1.5-2.0 from theoretical models
+    pub const EVAPORATION_MASS_EXPONENT: f64 = 1.8;
+}
+
+/// Calculate the photoevaporation threshold flux for a given planet mass
+///
+/// More massive planets can retain envelopes against stronger stellar irradiation.
+/// The threshold scales as F_threshold ∝ M^α where α ≈ 1.8.
+///
+/// # Arguments
+/// * `mass_earth` - Planet mass in Earth masses
+///
+/// # Returns
+/// Critical flux in Earth flux units (F⊕). Above this, envelope is stripped.
+///
+/// # References
+/// - Owen & Wu (2017) - "The Evaporation Valley in the Kepler Planets"
+/// - Lopez & Fortney (2014) - "The Role of Core Mass in Controlling Evaporation"
+pub fn evaporation_threshold(mass_earth: f64) -> f64 {
+    flux::EVAPORATION_BASE_FLUX
+        * (mass_earth / flux::EVAPORATION_REF_MASS).powf(flux::EVAPORATION_MASS_EXPONENT)
 }
 
 /// Estimate whether a planet is tidally locked based on orbital period and stellar mass
@@ -227,10 +256,15 @@ impl PlanetType {
                 stellar_mass,
                 semi_major_axis_au,
             ),
-            PlanetClass::Transitional => {
-                Self::determine_transitional(composition, equilibrium_temp, incident_flux)
+            PlanetClass::Transitional => Self::determine_transitional(
+                composition,
+                equilibrium_temp,
+                incident_flux,
+                mass_earth,
+            ),
+            PlanetClass::Volatile => {
+                Self::determine_volatile(equilibrium_temp, mass_earth, incident_flux)
             }
-            PlanetClass::Volatile => Self::determine_volatile(equilibrium_temp, mass_earth),
             PlanetClass::Giant => Self::determine_giant(equilibrium_temp, mass_earth),
         }
     }
@@ -324,9 +358,16 @@ impl PlanetType {
         }
     }
 
-    fn determine_transitional(composition: &Composition, t_eq: f64, incident_flux: f64) -> Self {
-        // Photoevaporation determines envelope fate
-        let stripped = incident_flux > flux::EVAPORATION_THRESHOLD;
+    fn determine_transitional(
+        composition: &Composition,
+        t_eq: f64,
+        incident_flux: f64,
+        mass_earth: f64,
+    ) -> Self {
+        // Photoevaporation: mass-dependent threshold
+        // More massive cores can retain envelopes against stronger irradiation
+        let threshold = evaporation_threshold(mass_earth);
+        let stripped = incident_flux > threshold;
 
         if stripped || composition.h_he_gas <= 0.0 {
             // Stripped or never had envelope
@@ -352,7 +393,16 @@ impl PlanetType {
         }
     }
 
-    fn determine_volatile(t_eq: f64, mass_earth: f64) -> Self {
+    fn determine_volatile(t_eq: f64, mass_earth: f64, incident_flux: f64) -> Self {
+        // Check for extreme photoevaporation - low-mass volatile planets
+        // under intense irradiation can be stripped to Chthonian cores
+        // Threshold is higher than for transitional planets due to larger mass
+        let evap_threshold = evaporation_threshold(mass_earth);
+        if incident_flux > evap_threshold * 3.0 && mass_earth < 20.0 {
+            // Extreme irradiation on low-mass volatile → stripped to core
+            return Self::Chthonian;
+        }
+
         // Saturn-class (50-160 M⊕) with moderate irradiation → Puffy Saturn
         // These are inflated sub-Jovians with anomalously low density
         let is_saturn_mass = mass_earth > 50.0;
