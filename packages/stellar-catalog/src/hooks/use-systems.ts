@@ -3,7 +3,7 @@ import init, {
   type PlanetarySystem,
 } from "@magrathea/planetary-wasm";
 import { useEffect, useState } from "react";
-import { filterBySpectralType } from "../utils/stars";
+// import { filterBySpectralType } from "../utils/stars";
 
 export function useGenerateSystems(seed: string, count: number) {
   const [systems, setSystems] = useState<PlanetarySystem[]>([]);
@@ -16,7 +16,7 @@ export function useGenerateSystems(seed: string, count: number) {
   useEffect(() => {
     if (initialized) {
       Promise.resolve(generateSystemsBatch(seed, count)).then((systems) => {
-        setSystems(filterBySpectralType(systems, "K"));
+        setSystems(systems);
       });
     }
   }, [seed, count, initialized]);

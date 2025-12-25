@@ -6,7 +6,7 @@ import { useGenerateSystems } from "./hooks/use-systems.ts";
 const MAX_WIDTH = 720;
 
 function App() {
-  const { systems } = useGenerateSystems("gamma-quadrant", 1000);
+  const { systems } = useGenerateSystems("gamma-quadrant", 100);
 
   return (
     <div className="p-4 pb-16 min-h-screen text-amber-600 bg-neutral-950 font-mono">

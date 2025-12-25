@@ -29,20 +29,20 @@ export function SectorInfo({ systems }: Props) {
       <DataList
         title="System Overview"
         data={[
-          ["Total Systems", systems.length],
-          ["Total Planets", planets.length],
-          ["Average Planets / System", averagePlanets],
+          ["Total Systems", systems.length, "systems"],
+          ["Total Planets", planets.length, "planets"],
+          ["Average Planets / System", averagePlanets, "average"],
         ]}
       />
 
       <DataList
         title="Stellar Distribution"
         data={[
-          ["M-Type", stars.M.length],
-          ["K-Type", stars.K.length],
-          ["G-Type", stars.G.length],
-          ["F-Type", stars.F.length],
-          ["A-Type", stars.A.length],
+          ["M-Type", stars.M.length, "m-type"],
+          ["K-Type", stars.K.length, "k-type"],
+          ["G-Type", stars.G.length, "g-type"],
+          ["F-Type", stars.F.length, "f-type"],
+          ["A-Type", stars.A.length, "a-type"],
         ]}
       />
 
@@ -54,6 +54,7 @@ export function SectorInfo({ systems }: Props) {
               <div className="bg-slate-300 size-4 rounded-full"></div>Compact
             </div>,
             compact.length,
+            "compact",
           ],
           [
             <div key="transitional" className="flex gap-1 items-center">
@@ -61,6 +62,7 @@ export function SectorInfo({ systems }: Props) {
               Transitional
             </div>,
             transitional.length,
+            "transitional",
           ],
           [
             <div key="volatile" className="flex gap-1 items-center">
@@ -68,6 +70,7 @@ export function SectorInfo({ systems }: Props) {
               Volatile
             </div>,
             volatile.length,
+            "volatile",
           ],
           [
             <div key="giant" className="flex gap-1 items-center">
@@ -75,6 +78,7 @@ export function SectorInfo({ systems }: Props) {
               <div>Giant</div>
             </div>,
             giant.length,
+            "giant",
           ],
         ]}
       />

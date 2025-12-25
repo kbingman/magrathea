@@ -107,3 +107,33 @@ fn test_planets_sorted_by_sma() {
         "Planets should be sorted by semi-major axis"
     );
 }
+
+#[test]
+fn test_planet_naming() {
+    let star = StellarObject::MainSequence(solar_analog());
+    let metadata = SystemMetadata::new_random(GenerationMethod::Manual, SystemArchitecture::Mixed);
+    let catalog_name = metadata.catalog_name.clone();
+    let system_id = metadata.id.to_string();
+
+    let mut inner = earth_analog();
+    inner.semi_major_axis = Length::from_au(0.5);
+
+    let mut middle = earth_analog();
+    middle.semi_major_axis = Length::from_au(1.0);
+
+    let mut outer = earth_analog();
+    outer.semi_major_axis = Length::from_au(2.0);
+
+    // Pass planets in scrambled order
+    let system = PlanetarySystem::new(vec![star], vec![outer, inner, middle], metadata);
+
+    // Check IDs are assigned correctly (innermost = b)
+    assert_eq!(system.planets[0].id, format!("{}-b", system_id));
+    assert_eq!(system.planets[1].id, format!("{}-c", system_id));
+    assert_eq!(system.planets[2].id, format!("{}-d", system_id));
+
+    // Check names follow IAU convention
+    assert_eq!(system.planets[0].name, format!("{} b", catalog_name));
+    assert_eq!(system.planets[1].name, format!("{} c", catalog_name));
+    assert_eq!(system.planets[2].name, format!("{} d", catalog_name));
+}

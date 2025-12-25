@@ -15,7 +15,7 @@ export function SystemCatalog({ systems, maxWidth }: Props) {
           <SystemCard
             key={`system-${metadata.id}`}
             id={metadata.id}
-            star={stars[0]}
+            stars={stars}
             planets={planets}
             name={metadata.catalogName || ""}
             maxWidth={maxWidth}

@@ -2,7 +2,7 @@ use rand_chacha::ChaChaRng;
 
 use crate::{
     planet::{
-        calculate_equilibrium_temp, earth_analog, jupiter_analog, neptune_analog,
+        calculate_equilibrium_temp, earth_analog, jupiter_analog, neptune_analog, planet_letter,
         radius_with_envelope,
     },
     planet_class::PlanetClass,
@@ -66,4 +66,19 @@ fn test_equilibrium_temp() {
 
     let t_jupiter = calculate_equilibrium_temp(5.2, 1.0);
     assert!(t_jupiter < t_earth);
+}
+
+#[test]
+fn test_planet_letter() {
+    // Standard letters: b through z
+    assert_eq!(planet_letter(0), "b"); // innermost
+    assert_eq!(planet_letter(1), "c");
+    assert_eq!(planet_letter(2), "d");
+    assert_eq!(planet_letter(24), "z");
+
+    // Extended: aa, ab, ac... for systems with >25 planets
+    assert_eq!(planet_letter(25), "aa");
+    assert_eq!(planet_letter(26), "ab");
+    assert_eq!(planet_letter(50), "az");
+    assert_eq!(planet_letter(51), "ba");
 }

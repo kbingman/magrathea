@@ -48,6 +48,15 @@ impl HostStar {
 #[cfg_attr(feature = "tsify", derive(Tsify))]
 #[cfg_attr(feature = "tsify", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Planet {
+    /// Unique identifier (e.g., "a1b2c3d4-b" for the innermost planet)
+    ///
+    /// Format: `{system_id}-{letter}` where letter starts at 'b' for innermost.
+    /// Assigned by the system after planets are sorted by semi-major axis.
+    pub id: String,
+    /// Display name (e.g., "KV-4729 b")
+    ///
+    /// Format: `{catalog_name} {letter}` following IAU exoplanet convention.
+    pub name: String,
     /// Planet mass
     pub mass: Mass,
     /// Planet radius
@@ -97,6 +106,8 @@ impl Planet {
         );
 
         Self {
+            id: String::new(),
+            name: String::new(),
             mass,
             radius,
             semi_major_axis,
@@ -106,6 +117,19 @@ impl Planet {
             class,
             planet_type,
             equilibrium_temp,
+        }
+    }
+
+    /// Return a new planet with identity assigned
+    ///
+    /// Called by `PlanetarySystem::new()` after sorting planets by semi-major axis.
+    /// The index determines the letter: 0 → 'b', 1 → 'c', etc.
+    pub fn with_identity(self, system_id: &str, catalog_name: &str, index: usize) -> Self {
+        let letter = planet_letter(index);
+        Self {
+            id: format!("{}-{}", system_id, letter),
+            name: format!("{} {}", catalog_name, letter),
+            ..self
         }
     }
 
@@ -215,6 +239,32 @@ impl Planet {
 /// T_eq = 278 × (L/a²)^0.25 K
 pub fn calculate_equilibrium_temp(semi_major_axis_au: f64, stellar_luminosity: f64) -> f64 {
     278.0 * (stellar_luminosity / semi_major_axis_au.powi(2)).powf(0.25)
+}
+
+/// Convert planet index to IAU designation letter
+///
+/// Following IAU convention: 'a' is reserved for the star(s),
+/// so planets start at 'b' for innermost, 'c' for next, etc.
+///
+/// # Examples
+/// - 0 → 'b' (innermost planet)
+/// - 1 → 'c'
+/// - 24 → 'z'
+/// - 25 → 'aa' (for systems with >25 planets)
+pub fn planet_letter(index: usize) -> String {
+    if index < 25 {
+        // Single letter: b through z
+        char::from(b'b' + index as u8).to_string()
+    } else {
+        // Extended: aa, ab, ac... for systems with many planets
+        let first = (index - 25) / 26;
+        let second = (index - 25) % 26;
+        format!(
+            "{}{}",
+            char::from(b'a' + first as u8),
+            char::from(b'a' + second as u8)
+        )
+    }
 }
 
 /// Calculate radius for planet with H/He envelope (sub-Neptune structure)

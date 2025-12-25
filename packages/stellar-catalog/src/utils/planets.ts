@@ -6,20 +6,17 @@ import type {
 
 export function collectPlanets(systems: PlanetarySystem[]): Planet[] {
   return systems
-    .reduce((acc, { planets }) => {
-      acc.concat(planets);
-      return acc;
-    }, [] as Planet[])
+    .flatMap(({ planets }) => planets)
     .filter(
       ({ planetType }) =>
         planetType.type !== "kuiperBeltObject" &&
-        planetType.type !== "dwarfPlanet"
+        planetType.type !== "dwarfPlanet",
     );
 }
 
 export function filterByClass(
   planets: Planet[],
-  planetClass: PlanetClass
+  planetClass: PlanetClass,
 ): Planet[] {
   return planets.filter((planet) => planet.class === planetClass);
 }

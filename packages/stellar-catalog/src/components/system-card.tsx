@@ -12,24 +12,24 @@ import { Tick } from "./tick";
 type Props = {
   id: string;
   name: string;
-  star: StellarObject;
+  stars: StellarObject[];
   planets: Planet[];
   maxWidth: number;
 };
 
-export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
+export function SystemCard({ id, name, planets, stars, maxWidth }: Props) {
   const [showInfo, _setShowInfo] = useState(false);
-  const { luminosityClass, mass, spectralType, subtype } =
-    star as MainSequenceStar;
+  const { color, luminosityClass, mass, spectralType, subtype } =
+    stars[0] as MainSequenceStar;
 
   const stellarRadius = Math.round(
-    scaleUnifiedMass(star.mass, {
+    scaleUnifiedMass(mass, {
       maxOutput: 32,
       minInput: 0.05,
       minOutput: 4,
-    })
+    }),
   );
-  const color = `rgb(${star.color.r}, ${star.color.g}, ${star.color.b})`;
+  const stellarColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
 
   return (
     <div id={`system-${id}`} className="flex items-center gap-6 relative">
@@ -46,12 +46,12 @@ export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
             height: `${stellarRadius}px`,
             left: `-${stellarRadius / 2}px`,
             top: `-${stellarRadius / 2}px`,
-            background: color,
+            background: stellarColor,
           }}
         />
         {planets.map((planet) => (
           <PlanetCard
-            key={`${id}-planet-${planet.mass.toFixed(6)}`}
+            key={`icon-${planet.id}`}
             planet={planet}
             maxWidth={maxWidth}
           />
@@ -69,13 +69,16 @@ export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
               .filter(
                 (p) =>
                   p.planetType.type !== "kuiperBeltObject" &&
-                  p.planetType.type !== "dwarfPlanet"
+                  p.planetType.type !== "dwarfPlanet",
               )
-              .map(({ planetType, mass }) => (
-                <div key={`planet-${mass.toFixed(6)}`}>
-                  {planetType.name} {toEarthMasses(mass).toFixed(3)}M⊕
-                </div>
-              ))}
+              .map(({ id, planetType, mass }) => {
+                console.log({ id });
+                return (
+                  <div key={id}>
+                    {planetType.name} {toEarthMasses(mass).toFixed(3)}M⊕
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

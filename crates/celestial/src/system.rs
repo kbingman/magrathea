@@ -51,7 +51,8 @@ pub struct PlanetarySystem {
 impl PlanetarySystem {
     /// Create a new planetary system
     ///
-    /// Planets are automatically sorted by semi-major axis.
+    /// Planets are automatically sorted by semi-major axis and assigned
+    /// identifiers following IAU convention (innermost = 'b', then 'c', etc.).
     ///
     /// # Panics
     /// Panics if `stars` is empty - every system must have at least one star.
@@ -65,12 +66,22 @@ impl PlanetarySystem {
             "PlanetarySystem must have at least one star"
         );
 
+        // Sort by semi-major axis (innermost first)
         planets.sort_by(|a, b| {
             a.semi_major_axis
                 .to_au()
                 .partial_cmp(&b.semi_major_axis.to_au())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+
+        // Assign identities based on sorted order
+        let system_id = metadata.id.to_string();
+        let catalog_name = &metadata.catalog_name;
+        let planets = planets
+            .into_iter()
+            .enumerate()
+            .map(|(i, p)| p.with_identity(&system_id, catalog_name, i))
+            .collect();
 
         Self {
             stars,
