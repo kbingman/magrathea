@@ -31,14 +31,14 @@ impl SystemArchitecture {
     /// * `stellar_mass` - Stellar mass in solar masses (M☉)
     /// * `metallicity` - Stellar metallicity [Fe/H] in dex
     ///
-    /// Architecture probabilities are calibrated against Kepler occurrence rates:
-    /// - M-dwarfs: High compact multi-planet rate (~45%), moderate sparse
-    /// - K/G-dwarfs: Balanced distribution, metallicity-dependent giant rate
-    /// - F/A/B stars: Higher sparse rate, giant-dominated when metal-rich
+    /// Architecture probabilities reflect that MOST stars have planets:
+    /// - Sparse systems are RARE (< 10%), not the default
+    /// - CompactMulti (TRAPPIST-1 style) is common for M/K dwarfs
+    /// - Mixed (Solar System style) is common for G/K/F stars
+    /// - GiantDominated scales with metallicity and stellar mass
     ///
-    /// Giant-dominated architecture probability scales with stellar mass (M^2.0)
-    /// to reflect the core accretion timescale problem for low-mass stars.
-    /// Stars below 0.25 M☉ cannot form gas giants via core accretion.
+    /// These rates are intentionally higher than Kepler detections to reflect
+    /// true populations. The Solar System is probably typical, not special.
     ///
     /// # References
     /// - Johnson et al. (2010) - Giant planet occurrence vs stellar mass
@@ -53,95 +53,77 @@ impl SystemArchitecture {
         // Metallicity boost for giant formation: P(giant) ∝ 10^(2×[Fe/H])
         let metallicity_boost = 10.0_f64.powf(2.0 * metallicity);
 
-        // Stellar mass scaling: different regimes for different mass ranges
-        // - M-dwarfs: M^2.0 (steep suppression)
-        // - K-dwarfs: M^1.0 (linear scaling)
-        // - G-dwarfs: smooth transition to baseline
-        // - F/A stars: M^1.5 (enhanced occurrence)
+        // Stellar mass scaling for giant formation
         let mass_scaling = if stellar_mass < MIN_STELLAR_MASS_FOR_GIANTS {
             0.0 // No giant-dominated architecture for very low mass stars
         } else if stellar_mass < 0.5 {
-            // M-dwarfs: steep suppression
-            stellar_mass.powf(2.0)
+            stellar_mass.powf(2.0) // M-dwarfs: steep suppression
         } else if stellar_mass < 0.9 {
-            // K-dwarfs: linear scaling
-            stellar_mass.powf(1.0)
+            stellar_mass.powf(1.0) // K-dwarfs: linear scaling
         } else if stellar_mass < 1.2 {
-            // G-dwarfs: smooth transition
-            let low = 0.9;
-            let high = 1.0;
             let t = (stellar_mass - 0.9) / 0.3;
-            low + t * (high - low)
+            0.9 + t * 0.1 // G-dwarfs: smooth transition
         } else {
-            // F/A stars: enhanced occurrence
-            stellar_mass.powf(1.5)
+            stellar_mass.powf(1.5) // F/A stars: enhanced occurrence
         };
 
-        // Combined giant probability factor
         let giant_factor = metallicity_boost * mass_scaling;
-
-        // Extract the primary spectral class (first character)
         let spectral_class = spectral_type.chars().next().unwrap_or('G');
 
         match spectral_class {
             'M' => {
-                // Base giant prob for M-dwarfs is low, scaled by mass and metallicity
-                // Early M (~0.4 M☉): ~3% giant-dominated
-                // Late M (~0.1 M☉): ~0.3% giant-dominated
-                let giant_prob = 0.10 * giant_factor;
+                // M-dwarfs: Compact multi-planet systems dominate (TRAPPIST-1 style)
+                // Sparse is RARE - most M-dwarfs have planets
+                let giant_prob = (0.08 * giant_factor).min(0.15);
 
                 let roll: f64 = rng.random();
                 match roll {
-                    x if x < 0.45 => Self::CompactMulti,
-                    x if x < 0.70 => Self::Sparse,
-                    x if x < 0.70 + giant_prob => Self::GiantDominated,
-                    _ => Self::Mixed,
+                    x if x < 0.55 => Self::CompactMulti, // Dominant architecture
+                    x if x < 0.85 => Self::Mixed,        // Many also have outer planets
+                    x if x < 0.85 + giant_prob => Self::GiantDominated,
+                    x if x < 0.95 => Self::CompactMulti, // More compact systems
+                    _ => Self::Sparse,                   // Rare: ~5%
                 }
             }
             'K' => {
-                // K-dwarfs: moderate giant probability, favor Mixed architecture
-                // At solar metallicity and 0.7 M☉: 0.08 * 1.0 * 0.7 = 5.6% GiantDominated
-                // Combined with 40% Mixed (1.5× modifier), gives ~10-12% total
-                let giant_prob = 0.08 * giant_factor;
+                // K-dwarfs: Mix of compact and mixed systems
+                let giant_prob = (0.10 * giant_factor).min(0.20);
 
                 let roll: f64 = rng.random();
                 match roll {
-                    x if x < 0.20 => Self::CompactMulti,
-                    x if x < 0.60 => Self::Mixed, // K-stars favor Mixed like F/A
-                    x if x < 0.60 + giant_prob => Self::GiantDominated,
-                    _ => Self::Sparse,
+                    x if x < 0.35 => Self::CompactMulti,
+                    x if x < 0.80 => Self::Mixed, // Solar System style common
+                    x if x < 0.80 + giant_prob => Self::GiantDominated,
+                    x if x < 0.95 => Self::Mixed, // More mixed systems
+                    _ => Self::Sparse,            // Rare: ~5%
                 }
             }
             'G' => {
-                // G-dwarfs: balanced distribution
-                // At solar metallicity and mass: 0.06 * 1.0 = 6% GiantDominated
-                // Combined with 25% Mixed (1.5× modifier), gives ~10-15% total
-                let giant_prob = 0.06 * giant_factor;
+                // G-dwarfs: Solar System style is typical
+                let giant_prob = (0.08 * giant_factor).min(0.20);
 
                 let roll: f64 = rng.random();
                 match roll {
-                    x if x < 0.25 => Self::CompactMulti,
-                    x if x < 0.50 => Self::Mixed,
-                    x if x < 0.50 + giant_prob => Self::GiantDominated,
-                    _ => Self::Sparse,
+                    x if x < 0.30 => Self::CompactMulti,
+                    x if x < 0.75 => Self::Mixed, // Solar System is typical!
+                    x if x < 0.75 + giant_prob => Self::GiantDominated,
+                    x if x < 0.93 => Self::Mixed, // Even more mixed
+                    _ => Self::Sparse,            // Rare: ~7%
                 }
             }
             'F' | 'A' | 'B' => {
-                // Massive stars: enhanced giant probability and favor Mixed architecture
-                // F/A stars have massive protoplanetary disks and long formation timescales
-                // Target: 30-50% total giant occurrence for F/A stars
-                // ~15% from GiantDominated + ~35% from Mixed architecture
-                let giant_prob = 0.15 * giant_factor;
+                // Massive stars: enhanced giant probability, mixed architectures
+                let giant_prob = (0.20 * giant_factor).min(0.35);
 
                 let roll: f64 = rng.random();
                 match roll {
                     x if x < giant_prob => Self::GiantDominated,
-                    x if x < 0.50 => Self::Mixed, // F/A stars favor Solar System-like architectures
-                    x if x < 0.70 => Self::Sparse,
-                    _ => Self::CompactMulti, // Rare but possible
+                    x if x < 0.70 => Self::Mixed,
+                    x if x < 0.85 => Self::CompactMulti,
+                    _ => Self::Sparse, // Rare: ~15% (shorter disk lifetimes)
                 }
             }
-            _ => Self::Sparse,
+            _ => Self::Mixed, // Default to having planets, not sparse
         }
     }
 

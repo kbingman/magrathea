@@ -163,18 +163,28 @@ fn sample_rayleigh(rng: &mut ChaChaRng, mode: f64, sigma: f64) -> f64 {
 }
 
 /// Sample number of planets for a system
+///
+/// These rates are intentionally HIGHER than Kepler detections to reflect
+/// true planetary populations. Kepler has massive observational biases
+/// (transit geometry, size, period) making its rates lower bounds.
+///
+/// Reference points:
+/// - TRAPPIST-1 (M dwarf): 7 planets
+/// - Solar System: 8 planets (or 4 giants + many smaller)
+/// - Most stars likely have multiple planets
 pub fn sample_planet_count(rng: &mut ChaChaRng, spectral_type: &str, metallicity: f64) -> usize {
+    // Boosted rates: 2-3× Kepler detections to reflect true populations
     let (mean, std) = match spectral_type {
-        "M" => (2.5, 1.5),
-        "K" => (2.0, 1.2),
-        "G" => (1.5, 1.0),
-        "F" => (1.2, 0.8),
-        _ => (1.0, 1.0),
+        "M" => (5.5, 2.0), // M dwarfs: compact multi-planet systems common (TRAPPIST-1 style)
+        "K" => (4.5, 1.8), // K dwarfs: rich systems
+        "G" => (4.0, 1.5), // G dwarfs: Solar System is typical, not special
+        "F" => (3.0, 1.2), // F dwarfs: slightly fewer (shorter disk lifetimes)
+        _ => (3.0, 1.5),
     };
 
-    let adjusted_mean = mean * (1.0 + metallicity);
+    let adjusted_mean = mean * (1.0 + 0.5 * metallicity); // Metallicity boost reduced
     let n = (adjusted_mean + sample_gaussian(rng, 0.0, std)).round() as i32;
-    n.max(0) as usize
+    n.max(1) as usize // At least 1 planet - sparse systems are rare
 }
 
 fn sample_gaussian(rng: &mut ChaChaRng, mean: f64, std_dev: f64) -> f64 {

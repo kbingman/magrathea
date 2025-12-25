@@ -27,23 +27,26 @@ use crate::sampling::{
 };
 
 // =============================================================================
-// Outer System Occurrence Rates (from RV, microlensing, direct imaging)
+// Outer System Occurrence Rates
 // =============================================================================
+//
+// These rates are intentionally HIGHER than survey detections to reflect
+// true populations. RV, microlensing, and direct imaging all have significant
+// detection biases. The Solar System (with 2 ice giants) is probably typical.
 
 /// Base probability for cold giants (1.5-6× snow line) at solar metallicity
-/// From Mayor+ 2011, Cumming+ 2008: ~10-14% of FGK stars
-/// Reduced from 0.15 to avoid double-counting with GiantDominated architecture
-/// After architecture-level giants, ~6% additional cold giant rate gives ~12% total
-const COLD_GIANT_BASE_RATE: f64 = 0.06;
+/// Surveys detect ~10-14%, but true rate likely 20-30%
+/// Solar System has 2 gas giants in this zone
+const COLD_GIANT_BASE_RATE: f64 = 0.25;
 
 /// Base probability for ice giants (5-15× snow line)
-/// From Cassan+ 2012, Suzuki+ 2016: ~20-30% of FGK systems
-/// Reduced from 0.35 to account for detection bias in microlensing surveys
-const ICE_GIANT_BASE_RATE: f64 = 0.25;
+/// Surveys detect ~20-30%, but true rate likely 50-70%
+/// Solar System has 2 ice giants - this is probably typical
+const ICE_GIANT_BASE_RATE: f64 = 0.60;
 
 /// Probability of wide companions (50-300 AU)
-/// From Nielsen+ 2019, Vigan+ 2021: ~1-3% of systems
-const WIDE_COMPANION_RATE: f64 = 0.02;
+/// Surveys detect ~1-3%, true rate likely 5-10%
+const WIDE_COMPANION_RATE: f64 = 0.08;
 
 /// Maximum planet-to-star mass ratio
 /// Prevents unrealistic massive planets around low-mass stars
@@ -357,13 +360,13 @@ pub fn generate_random_system(seed: u64) -> PlanetarySystem {
 // Architecture-Specific Generators
 // =============================================================================
 
-/// Generate a compact multi-planet system (Kepler-like)
+/// Generate a compact multi-planet system (TRAPPIST-1 style)
 ///
-/// Compact systems have 4-7 tightly-packed inner planets with low
+/// Compact systems have 5-8 tightly-packed inner planets with low
 /// mutual inclinations. They can still have outer system companions,
 /// but at reduced rates compared to mixed systems.
 fn generate_compact_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
-    let n_planets: usize = rng.random_range(4..=7);
+    let n_planets: usize = rng.random_range(5..=8); // Boosted from 4-7
     let hz = HabitableZone::from_luminosity(star.luminosity);
 
     let inner_au = 0.01 * star.luminosity.sqrt();
@@ -389,13 +392,14 @@ fn generate_compact_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Pl
 ///
 /// These are "Solar System-like" architectures with small rocky/icy planets
 /// in the inner system and gas/ice giants in the outer system. This is
-/// likely the most common architecture for FGK stars with giant planets.
+/// the most common architecture - the Solar System is typical, not special.
 fn generate_mixed_system(rng: &mut ChaChaRng, star: &StellarContext) -> Vec<Planet> {
     let sl = star.snow_line();
 
     // Inner terrestrial zone: inside snow line
-    let n_inner: usize = rng.random_range(1..=4);
-    let inner_au = 0.3 * star.luminosity.sqrt();
+    // Solar System has 4 inner planets - this is typical
+    let n_inner: usize = rng.random_range(3..=6); // Boosted from 1-4
+    let inner_au = 0.2 * star.luminosity.sqrt(); // Start closer in
     let mut planets = generate_n_spaced_planets(rng, star, n_inner, inner_au, sl * 0.8, 0.05..5.0);
 
     // Mixed systems have enhanced outer system rates
