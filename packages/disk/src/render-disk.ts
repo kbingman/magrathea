@@ -1,8 +1,8 @@
 import init, {
-  solar_analog,
   grid_disk_create,
   grid_disk_evolve,
   grid_disk_profile,
+  solar_analog,
 } from "@magrathea/magrathea-wasm";
 
 interface Star {

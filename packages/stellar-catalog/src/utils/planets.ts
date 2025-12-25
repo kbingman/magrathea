@@ -6,7 +6,10 @@ import type {
 
 export function collectPlanets(systems: PlanetarySystem[]): Planet[] {
   return systems
-    .reduce((acc, { planets }) => [...acc, ...planets], [] as Planet[])
+    .reduce((acc, { planets }) => {
+      acc.concat(planets);
+      return acc;
+    }, [] as Planet[])
     .filter(
       ({ planetType }) =>
         planetType.type !== "kuiperBeltObject" &&

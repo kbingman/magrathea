@@ -1,8 +1,8 @@
 import type { PlanetarySystem } from "@magrathea/planetary-wasm";
 import { useMemo } from "react";
+import { useStars } from "../hooks/use-stars";
 import { collectPlanets, filterByClass } from "../utils/planets";
 import { DataList } from "./data-list";
-import { useStars } from "../hooks/use-stars";
 
 type Props = {
   systems: PlanetarySystem[];
@@ -50,27 +50,27 @@ export function SectorInfo({ systems }: Props) {
         title="Planet Classes"
         data={[
           [
-            <div className="flex gap-1 items-center">
+            <div key="compact" className="flex gap-1 items-center">
               <div className="bg-slate-300 size-4 rounded-full"></div>Compact
             </div>,
             compact.length,
           ],
           [
-            <div className="flex gap-1 items-center">
+            <div key="transitional" className="flex gap-1 items-center">
               <div className="bg-sky-100 size-4 rounded-full"></div>
               Transitional
             </div>,
             transitional.length,
           ],
           [
-            <div className="flex gap-1 items-center">
+            <div key="volatile" className="flex gap-1 items-center">
               <div className="bg-blue-300 size-4 rounded-full"></div>
               Volatile
             </div>,
             volatile.length,
           ],
           [
-            <div className="flex gap-1 items-center">
+            <div key="giant" className="flex gap-1 items-center">
               <div className="bg-orange-300 size-4 rounded-full"></div>
               <div>Giant</div>
             </div>,

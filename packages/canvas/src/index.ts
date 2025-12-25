@@ -1,20 +1,20 @@
-export { translateX, translateY } from "./coords";
 export {
-  resizeCanvas,
   createCanvas,
   drawCircle,
   drawLine,
   drawRect,
   fillCanvas,
+  resizeCanvas,
 } from "./canvas";
+export { translateX, translateY } from "./coords";
 export {
+  PLANETARY_MASS_SCALE,
+  SEMI_MAJOR_AXIS_SCALE,
+  STELLAR_RADIUS_SCALE,
+  scalePlanetaryMass,
   scaleRadius,
   scaleSemiMajorAxis,
-  scalePlanetaryMass,
   scaleStellarRadius,
   scaleUnifiedMass,
-  SEMI_MAJOR_AXIS_SCALE,
-  PLANETARY_MASS_SCALE,
-  STELLAR_RADIUS_SCALE,
   UNIFIED_MASS_SCALE,
 } from "./scale";

@@ -3,8 +3,8 @@ import {
   scaleSemiMajorAxis,
   scaleUnifiedMass,
 } from "../../../canvas/src/scale";
-import { toEarthMasses } from "../utils/units";
 import { getPlanetColor } from "../utils/planet-colors";
+import { toEarthMasses } from "../utils/units";
 
 type Props = {
   planet: Planet;

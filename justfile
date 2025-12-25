@@ -2,6 +2,12 @@
 default:
   @just --list
 
+build-wasm:
+  wasm-pack build crates/magrathea-wasm --target web --scope magrathea
+  wasm-pack build crates/planetary-wasm --target web --scope magrathea
+  # Patch TypeScript types to include 'name' and 'description' fields in PlanetType variants
+  sed -i '' 's/{ type: "\([^"]*\)"/{ type: "\1"; name: string; description: string/g' crates/planetary-wasm/pkg/planetary_wasm.d.ts
+
 # Install all dependencies
 install: install-rust install-ts
 
@@ -11,11 +17,13 @@ install-rust:
 install-ts:
   npm install
 
-build-wasm:
-  wasm-pack build crates/magrathea-wasm --target web --scope magrathea
-  wasm-pack build crates/planetary-wasm --target web --scope magrathea
-  # Patch TypeScript types to include 'name' and 'description' fields in PlanetType variants
-  sed -i '' 's/{ type: "\([^"]*\)"/{ type: "\1"; name: string; description: string/g' crates/planetary-wasm/pkg/planetary_wasm.d.ts
+lint: lint-rust lint-ts
+
+lint-rust:
+  cargo clippy
+
+lint-ts:
+  npm run lint
 
 test-rust:
   cargo test --quiet

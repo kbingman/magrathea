@@ -1,5 +1,5 @@
-import type { PropsWithChildren } from "react";
 import { scaleSemiMajorAxis } from "@magrathea/canvas";
+import type { PropsWithChildren } from "react";
 
 const OFFSET_LEFT = 60;
 

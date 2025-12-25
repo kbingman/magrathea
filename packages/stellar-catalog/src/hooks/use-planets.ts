@@ -1,6 +1,5 @@
-import { useMemo } from "react";
-
 import type { PlanetarySystem } from "@magrathea/planetary-wasm";
+import { useMemo } from "react";
 import { collectPlanets, filterByClass } from "../utils/planets";
 
 export function usePlanets(systems: PlanetarySystem[]) {

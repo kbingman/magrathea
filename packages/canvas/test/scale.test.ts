@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
+  PLANETARY_MASS_SCALE,
+  SEMI_MAJOR_AXIS_SCALE,
+  STELLAR_RADIUS_SCALE,
+  scalePlanetaryMass,
   scaleRadius,
   scaleSemiMajorAxis,
-  scalePlanetaryMass,
   scaleStellarRadius,
-  SEMI_MAJOR_AXIS_SCALE,
-  PLANETARY_MASS_SCALE,
-  STELLAR_RADIUS_SCALE,
   scaleUnifiedMass,
   UNIFIED_MASS_SCALE,
 } from "../src/scale";

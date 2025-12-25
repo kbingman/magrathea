@@ -3,11 +3,11 @@ import type {
   Planet,
   StellarObject,
 } from "@magrathea/planetary-wasm";
+import { useState } from "react";
 import { scaleUnifiedMass } from "../../../canvas/src/scale";
+import { toEarthMasses } from "../utils/units";
 import { PlanetCard } from "./planet-card";
 import { Tick } from "./tick";
-import { useState } from "react";
-import { toEarthMasses } from "../utils/units";
 
 type Props = {
   id: string;
@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
-  const [showInfo, setShowInfo] = useState(false);
+  const [showInfo, _setShowInfo] = useState(false);
   const { luminosityClass, mass, spectralType, subtype } =
     star as MainSequenceStar;
 
@@ -41,8 +41,6 @@ export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
         <Tick semiMajorAxis={1000} maxOutput={maxWidth} />
         <div
           className="bg-white rounded-full absolute"
-          onMouseEnter={() => setShowInfo(true)}
-          onMouseLeave={() => setShowInfo(false)}
           style={{
             width: `${stellarRadius}px`,
             height: `${stellarRadius}px`,
@@ -51,9 +49,9 @@ export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
             background: color,
           }}
         />
-        {planets.map((planet, index) => (
+        {planets.map((planet) => (
           <PlanetCard
-            key={`${id}-planet-${index}`}
+            key={`${id}-planet-${planet.mass.toFixed(6)}`}
             planet={planet}
             maxWidth={maxWidth}
           />
@@ -74,7 +72,7 @@ export function SystemCard({ id, name, planets, star, maxWidth }: Props) {
                   p.planetType.type !== "dwarfPlanet"
               )
               .map(({ planetType, mass }) => (
-                <div>
+                <div key={`planet-${mass.toFixed(6)}`}>
                   {planetType.name} {toEarthMasses(mass).toFixed(3)}M⊕
                 </div>
               ))}

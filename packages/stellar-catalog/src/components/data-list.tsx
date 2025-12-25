@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 type Props = {
   data: [ReactNode, ReactNode][];
@@ -11,10 +11,10 @@ export function DataList({ data, title }: Props) {
       <h2 className="text-sm uppercase">{title}</h2>
       <dl className="text-xs uppercase grid grid-cols-2 gap-1 justify-between">
         {data.map(([k, v]) => (
-          <>
+          <Fragment key={k?.toString()}>
             <dt className="text-left">{k}</dt>
             <dd className="text-right">{v}</dd>
-          </>
+          </Fragment>
         ))}
       </dl>
     </div>

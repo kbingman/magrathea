@@ -1,7 +1,7 @@
-import { useGenerateSystems } from "./hooks/use-systems.ts";
 import { DistanceLabel } from "./components/distance-label.tsx";
 import { SectorInfo } from "./components/sector-info.tsx";
 import { SystemCatalog } from "./components/systems-catalog.tsx";
+import { useGenerateSystems } from "./hooks/use-systems.ts";
 
 const MAX_WIDTH = 720;
 
