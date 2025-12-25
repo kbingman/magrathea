@@ -26,6 +26,7 @@ pub mod planet;
 pub mod planet_class;
 pub mod planet_type;
 pub mod temperature;
+pub mod variation;
 
 // Re-export key types at crate root
 pub use atmosphere::AtmosphereType;
@@ -36,6 +37,7 @@ pub use planet::{HostStar, Planet};
 pub use planet_class::PlanetClass;
 pub use planet_type::PlanetType;
 pub use temperature::{Temperature, TemperatureClass};
+pub use variation::PlanetaryVariation;
 
 #[cfg(test)]
 mod atmosphere_test;
@@ -53,3 +55,5 @@ mod planet_test;
 mod planet_type_test;
 #[cfg(test)]
 mod temperature_test;
+#[cfg(test)]
+mod variation_test;
