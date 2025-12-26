@@ -22,6 +22,7 @@ pub mod atmosphere;
 pub mod composition;
 pub mod geology;
 pub mod interior;
+pub mod moon;
 pub mod planet;
 pub mod planet_class;
 pub mod planet_type;
@@ -33,6 +34,7 @@ pub use atmosphere::AtmosphereType;
 pub use composition::Composition;
 pub use geology::{GeologicalActivity, TectonicRegime, VolcanismLevel};
 pub use interior::{DifferentiationState, HeatSource, ThermalState};
+pub use moon::{Moon, MoonFormation, MoonSystem, TidalHeatingLevel};
 pub use planet::{HostStar, Planet};
 pub use planet_class::PlanetClass;
 pub use planet_type::PlanetType;
@@ -47,6 +49,8 @@ mod composition_test;
 mod geology_test;
 #[cfg(test)]
 mod interior_test;
+#[cfg(test)]
+mod moon_test;
 #[cfg(test)]
 mod planet_class_test;
 #[cfg(test)]

@@ -12,6 +12,7 @@ use units::{Length, Mass};
 use tsify_next::Tsify;
 
 use crate::composition::Composition;
+use crate::moon::MoonSystem;
 use crate::planet_class::PlanetClass;
 use crate::planet_type::PlanetType;
 
@@ -75,6 +76,9 @@ pub struct Planet {
     pub planet_type: PlanetType,
     /// Equilibrium temperature (K)
     pub equilibrium_temp: f64,
+    /// Moon system (major moons and rings)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub moon_system: Option<MoonSystem>,
 }
 
 impl Planet {
@@ -117,6 +121,7 @@ impl Planet {
             class,
             planet_type,
             equilibrium_temp,
+            moon_system: None,
         }
     }
 
