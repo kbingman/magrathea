@@ -116,27 +116,43 @@ fn tidal_locking_timescale(
     (a6 / denominator) * q_over_k2 * 1e-20 / SECONDS_PER_YEAR
 }
 
+// Reference values for Io (used for tidal heating calibration)
+const JUPITER_MASS_KG: f64 = 1.898e27;
+const IO_RADIUS_M: f64 = 1.8216e6;
+const IO_SMA_M: f64 = 4.217e8;
+const IO_ECCENTRICITY: f64 = 0.0041;
+const IO_HEAT_FLUX: f64 = 2.0; // W/m²
+
 /// Calculate tidal heat flux in W/m²
 ///
 /// Tidal heating arises from gravitational flexing as the moon's orbit
 /// is perturbed. Higher eccentricity and closer orbits produce more heating.
 ///
-/// Q_tidal ∝ (M_planet × R_moon^5 × e^2) / (a^6 × Q)
-fn tidal_heat_flux(
+/// Uses scaling relation calibrated to Io:
+/// Φ ∝ M_p^2.5 × R^3 × e² / a^7.5
+///
+/// # References
+/// - Peale et al. (1979) - "Melting of Io by tidal dissipation"
+/// - Segatz et al. (1988) - "Tidal dissipation, surface heat flow, and figure of Io"
+pub fn tidal_heat_flux(
     planet_mass_kg: f64,
     moon_radius_m: f64,
     semi_major_axis_m: f64,
     eccentricity: f64,
 ) -> f64 {
-    // Simplified tidal heating formula
-    // Io's heat flux is ~2 W/m², Europa's is ~0.1 W/m²
-    let q_factor = 100.0; // Tidal dissipation factor
+    // Avoid division by zero for circular orbits
+    if eccentricity < 1e-6 {
+        return 0.0;
+    }
 
-    let numerator = planet_mass_kg * moon_radius_m.powi(5) * eccentricity.powi(2);
-    let denominator = semi_major_axis_m.powi(6) * q_factor;
+    // Scale everything relative to Io (which has ~2 W/m² heat flux)
+    // Φ ∝ M_p^2.5 × R^3 × e² × a^-7.5
+    let mass_ratio = (planet_mass_kg / JUPITER_MASS_KG).powf(2.5);
+    let radius_ratio = (moon_radius_m / IO_RADIUS_M).powi(3);
+    let ecc_ratio = (eccentricity / IO_ECCENTRICITY).powi(2);
+    let sma_ratio = (IO_SMA_M / semi_major_axis_m).powf(7.5);
 
-    // Scale factor calibrated to give ~2 W/m² for Io-like parameters
-    (numerator / denominator) * 1e-10
+    IO_HEAT_FLUX * mass_ratio * radius_ratio * ecc_ratio * sma_ratio
 }
 
 // =============================================================================
