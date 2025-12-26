@@ -236,17 +236,28 @@ pub fn generate_planetary_system(star: StellarObject, id: Uuid) -> PlanetarySyst
     let architecture =
         SystemArchitecture::sample(&mut rng, &spectral_type, stellar_mass, stellar_metallicity);
 
-    let planets = match architecture {
+    let mut planets = match architecture {
         SystemArchitecture::CompactMulti => generate_compact_system(&mut rng, &ctx),
         SystemArchitecture::Mixed => generate_mixed_system(&mut rng, &ctx),
         SystemArchitecture::GiantDominated => generate_giant_system(&mut rng, &ctx),
         SystemArchitecture::Sparse => generate_sparse_system(&mut rng, &ctx),
     };
 
+    // Sort planets before generating moons (same order as PlanetarySystem::new)
+    planets.sort_by(|a, b| {
+        a.semi_major_axis
+            .to_au()
+            .partial_cmp(&b.semi_major_axis.to_au())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     let mut metadata = SystemMetadata::with_id(id, GenerationMethod::Statistical, architecture);
     if let Some(config) = binary_config {
         metadata = metadata.with_binary_config(config);
     }
+
+    // Generate moon systems for each planet
+    let planets = generate_moons_for_planets(&mut rng, planets, stellar_mass, &metadata);
 
     PlanetarySystem::new(stars, planets, metadata)
 }
@@ -1014,4 +1025,41 @@ fn is_stable(planets: &[Planet], stellar_mass: f64) -> bool {
 
         (a2 - a1) / mutual_hill >= 8.0
     })
+}
+
+/// Generate moon systems for all planets
+///
+/// Takes a sorted list of planets and generates moons for each one.
+/// Planet identities are constructed using the same logic as PlanetarySystem::new().
+fn generate_moons_for_planets(
+    rng: &mut ChaChaRng,
+    planets: Vec<Planet>,
+    stellar_mass: f64,
+    metadata: &SystemMetadata,
+) -> Vec<Planet> {
+    let system_id = metadata.id.to_string();
+    let catalog_name = &metadata.catalog_name;
+
+    planets
+        .into_iter()
+        .enumerate()
+        .map(|(i, mut planet)| {
+            // Construct planet identity (same as PlanetarySystem::new)
+            let letter = planetary::planet::planet_letter(i);
+            let planet_id = format!("{}-{}", system_id, letter);
+            let planet_name = format!("{} {}", catalog_name, letter);
+
+            // Generate moon system
+            let moon_system = crate::moon_generation::generate_moon_system(
+                rng,
+                &planet,
+                stellar_mass,
+                &planet_id,
+                &planet_name,
+            );
+
+            planet.moon_system = moon_system;
+            planet
+        })
+        .collect()
 }

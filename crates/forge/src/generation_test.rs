@@ -829,3 +829,77 @@ fn test_hot_jupiter_lonely() {
         non_hj_avg / hj_avg.max(0.01)
     );
 }
+
+// =============================================================================
+// Moon System Generation Tests
+// =============================================================================
+
+/// Test that gas giants usually have moons
+#[test]
+fn test_gas_giants_have_moons() {
+    let n_systems = 200;
+    let mut giants_with_moons = 0;
+    let mut total_giants = 0;
+
+    for i in 0..n_systems {
+        let star = sun_like_star();
+        let system = generate_planetary_system(star, Uuid::from_u64_pair(i as u64, 0));
+
+        for planet in &system.planets {
+            // Check for gas giants (> 50 M⊕)
+            if planet.mass.to_earth_masses() > 50.0 {
+                total_giants += 1;
+                if let Some(ref moon_system) = planet.moon_system {
+                    if moon_system.has_moons() {
+                        giants_with_moons += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Gas giants should usually have moons (>90% based on occurrence rates)
+    if total_giants > 10 {
+        let moon_rate = giants_with_moons as f64 / total_giants as f64;
+        assert!(
+            moon_rate > 0.8,
+            "Gas giants should usually have moons: {}/{} = {:.1}%",
+            giants_with_moons,
+            total_giants,
+            moon_rate * 100.0
+        );
+    }
+}
+
+/// Test that moon systems are properly populated
+#[test]
+fn print_moon_systems() {
+    println!("\n=== MOON SYSTEMS ===\n");
+
+    for i in 0..50 {
+        let star = sun_like_star();
+        let system = generate_planetary_system(star, Uuid::from_u64_pair(i as u64, 0));
+
+        for planet in &system.planets {
+            if let Some(ref moon_system) = planet.moon_system {
+                if moon_system.has_moons() || moon_system.has_rings {
+                    println!(
+                        "{}: {} moons, rings: {}",
+                        planet.name,
+                        moon_system.moon_count(),
+                        moon_system.has_rings
+                    );
+                    for moon in &moon_system.moons {
+                        println!(
+                            "  - {} ({:.4} M⊕, {}, heating: {:.3} W/m²)",
+                            moon.name,
+                            moon.mass.to_earth_masses(),
+                            moon.moon_type,
+                            moon.tidal_heat_flux
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

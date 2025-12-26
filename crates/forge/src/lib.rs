@@ -5,6 +5,7 @@
 
 pub mod binary;
 pub mod generation;
+pub mod moon_generation;
 pub mod sampling;
 
 // Re-export main generation functions
@@ -27,6 +28,9 @@ pub use binary::{
     stable_orbital_range,
 };
 
+// Re-export moon generation
+pub use moon_generation::generate_moon_system;
+
 // Re-export celestial types for convenience
 pub use celestial::{
     GenerationMethod, HabitableZone, PlanetarySystem, SystemArchitecture, SystemMetadata,
@@ -34,5 +38,7 @@ pub use celestial::{
 
 #[cfg(test)]
 mod generation_test;
+#[cfg(test)]
+mod moon_generation_test;
 #[cfg(test)]
 mod sampling_test;
