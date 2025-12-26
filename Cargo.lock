@@ -358,6 +358,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nbody-wasm"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "nalgebra",
+ "nbody",
+ "serde",
+ "serde-wasm-bindgen",
+ "stellar",
+ "units",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
